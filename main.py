@@ -182,6 +182,14 @@ class DataLoader_APOLLO:
                 )
             log.info("Graph: %d nodes, %d edges", graph.number_of_nodes(), graph.number_of_edges())
             return graph
+        log.warning(
+            "SNAP hyperlink graph not found at %s. "
+            "Download it with:\n"
+            "  wget -O data/reddit_hyperlinks.tsv "
+            "https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv\n"
+            "Falling back to synthetic graph — polarization values will be MEANINGLESS.",
+            self.cfg.HYPERLINKS_FILE,
+        )
         return self._synthetic_graph()
 
     def load_cybersecurity_data(self) -> pd.DataFrame:
@@ -284,8 +292,11 @@ def aggregate_daily_with_embeddings(
     daily = daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
     daily["time_idx"] = daily.groupby("subreddit").cumcount()
     daily["group_id"] = daily["subreddit"]
-    daily["avg_toxicity"] = daily["avg_toxicity"].fillna(0).clip(0, 1)
-    daily["toxic_rate"] = daily["toxic_rate"].fillna(0).clip(0, 1)
+    # Do NOT fillna(0) — missing days must stay NaN so the forecaster knows
+    # there was no data, not a healthy day.  Drop rows with no toxicity signal.
+    daily = daily.dropna(subset=["avg_toxicity", "toxic_rate"])
+    daily["avg_toxicity"] = daily["avg_toxicity"].clip(0, 1)
+    daily["toxic_rate"] = daily["toxic_rate"].clip(0, 1)
     daily["comment_count"] = daily["comment_count"].clip(lower=1)
     return daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
 
@@ -346,6 +357,8 @@ class MicroLayer:
             result["toxicity_score"] = [self.score_comment(str(t)) for t in df[text_col]]
         result["is_toxic"] = result["toxicity_score"] >= self.cfg.TOXICITY_THRESHOLD
         log.info("Toxic rate: %.2f%%", result["is_toxic"].mean() * 100)
+        result.to_csv(self.cfg.REDDIT_COMMENTS, index=False)
+        log.info("Saved toxicity scores back to apollo_comments.csv")
         return result
 
     def compute_community_toxicity(self, df: pd.DataFrame) -> pd.DataFrame:
