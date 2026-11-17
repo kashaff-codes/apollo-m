@@ -1,0 +1,12 @@
+id,expected,measured,match
+E1,communities differ measurably (spread >= 0.048),spread 0.1959 over 39,match
+E2a,political/news in top half (median rank <= 19),"median rank 14 of 39 (politics 6, news 11, worldnews 17, Conservative 22)",match
+E2b,r/science lowest,r/science rank 38 of 39; lowest is r/geopolitics,differs
+E3,CHI in 0..100 and varies,65.45 .. 83.14,match
+E4,"instability and trend vary, not all zero",instability 0.0186 .. 0.1118; trend -0.0140 .. +0.0170,match
+E5,polarisation and echo differ per community,"P 38 distinct, E 37 distinct among 38 in graph; 1 absent from graph",match
+E6,forecast intervals widen with horizon (each seed),seed 42: 0.0707 -> 0.0781; seed 43: 0.0811 -> 0.0833; seed 44: 0.0641 -> 0.0674,match
+E7,recommender gives a mix of actions,"{'WARN': 27, 'MONITOR': 7, 'INCREASE_MODERATION': 5}",match
+E8,"5 non-empty clusters, both PCA axes vary","clusters {0: 8, 1: 19, 2: 5, 3: 3, 4: 4}; std pca_x 1.562, pca_y 1.196",match
+E9,"forecasts real: 5 days per community per seed, p50 > 0",38 communities; failed [],match
+E10,same communities rank similarly to August (rho > 0),Spearman rho 0.916 over 14 shared subreddits,match

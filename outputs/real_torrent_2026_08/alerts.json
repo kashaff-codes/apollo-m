@@ -1,0 +1,275 @@
+[
+  {
+    "subreddit": "r/PublicFreakout",
+    "alert_level": "MEDIUM",
+    "chi": 65.45,
+    "message": "[MEDIUM] r/PublicFreakout CHI=65.5 toxicity=19.77%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/unpopularopinion",
+    "alert_level": "MEDIUM",
+    "chi": 66.32,
+    "message": "[MEDIUM] r/unpopularopinion CHI=66.3 toxicity=9.88%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/mildlyinfuriating",
+    "alert_level": "MEDIUM",
+    "chi": 68.21,
+    "message": "[MEDIUM] r/mildlyinfuriating CHI=68.2 toxicity=12.34%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/AmItheAsshole",
+    "alert_level": "MEDIUM",
+    "chi": 68.58,
+    "message": "[MEDIUM] r/AmItheAsshole CHI=68.6 toxicity=12.83%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/worldpolitics",
+    "alert_level": "LOW",
+    "chi": 71.27,
+    "message": "[LOW] r/worldpolitics CHI=71.3 toxicity=14.48%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/news",
+    "alert_level": "LOW",
+    "chi": 72.87,
+    "message": "[LOW] r/news CHI=72.9 toxicity=13.61%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/gonewild",
+    "alert_level": "LOW",
+    "chi": 72.91,
+    "message": "[LOW] r/gonewild CHI=72.9 toxicity=24.08%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/RoastMe",
+    "alert_level": "LOW",
+    "chi": 73.06,
+    "message": "[LOW] r/RoastMe CHI=73.1 toxicity=23.83%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/TwoXChromosomes",
+    "alert_level": "LOW",
+    "chi": 73.09,
+    "message": "[LOW] r/TwoXChromosomes CHI=73.1 toxicity=14.63%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/relationship_advice",
+    "alert_level": "LOW",
+    "chi": 73.49,
+    "message": "[LOW] r/relationship_advice CHI=73.5 toxicity=15.20%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/worldnews",
+    "alert_level": "LOW",
+    "chi": 73.8,
+    "message": "[LOW] r/worldnews CHI=73.8 toxicity=12.17%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/depression",
+    "alert_level": "LOW",
+    "chi": 73.98,
+    "message": "[LOW] r/depression CHI=74.0 toxicity=11.20%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/MensRights",
+    "alert_level": "LOW",
+    "chi": 74.07,
+    "message": "[LOW] r/MensRights CHI=74.1 toxicity=15.61%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/funny",
+    "alert_level": "LOW",
+    "chi": 74.4,
+    "message": "[LOW] r/funny CHI=74.4 toxicity=12.18%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/SuicideWatch",
+    "alert_level": "LOW",
+    "chi": 74.5,
+    "message": "[LOW] r/SuicideWatch CHI=74.5 toxicity=13.58%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/politics",
+    "alert_level": "LOW",
+    "chi": 74.67,
+    "message": "[LOW] r/politics CHI=74.7 toxicity=15.21%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/tifu",
+    "alert_level": "LOW",
+    "chi": 74.73,
+    "message": "[LOW] r/tifu CHI=74.7 toxicity=14.07%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/AskReddit",
+    "alert_level": "LOW",
+    "chi": 75.34,
+    "message": "[LOW] r/AskReddit CHI=75.3 toxicity=9.56%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/antiwork",
+    "alert_level": "LOW",
+    "chi": 75.34,
+    "message": "[LOW] r/antiwork CHI=75.3 toxicity=12.73%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/teenagers",
+    "alert_level": "LOW",
+    "chi": 76.01,
+    "message": "[LOW] r/teenagers CHI=76.0 toxicity=10.47%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/todayilearned",
+    "alert_level": "LOW",
+    "chi": 76.14,
+    "message": "[LOW] r/todayilearned CHI=76.1 toxicity=8.86%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/movies",
+    "alert_level": "LOW",
+    "chi": 76.15,
+    "message": "[LOW] r/movies CHI=76.2 toxicity=8.92%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/technology",
+    "alert_level": "LOW",
+    "chi": 76.16,
+    "message": "[LOW] r/technology CHI=76.2 toxicity=10.91%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/wallstreetbets",
+    "alert_level": "LOW",
+    "chi": 76.71,
+    "message": "[LOW] r/wallstreetbets CHI=76.7 toxicity=15.45%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/China",
+    "alert_level": "LOW",
+    "chi": 76.91,
+    "message": "[LOW] r/China CHI=76.9 toxicity=6.45%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/conspiracy",
+    "alert_level": "LOW",
+    "chi": 77.14,
+    "message": "[LOW] r/conspiracy CHI=77.1 toxicity=10.26%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/Superstonk",
+    "alert_level": "LOW",
+    "chi": 77.4,
+    "message": "[LOW] r/Superstonk CHI=77.4 toxicity=9.16%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/gaming",
+    "alert_level": "LOW",
+    "chi": 77.58,
+    "message": "[LOW] r/gaming CHI=77.6 toxicity=8.28%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/aww",
+    "alert_level": "LOW",
+    "chi": 77.59,
+    "message": "[LOW] r/aww CHI=77.6 toxicity=6.60%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/ukraine",
+    "alert_level": "LOW",
+    "chi": 78.63,
+    "message": "[LOW] r/ukraine CHI=78.6 toxicity=10.19%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/science",
+    "alert_level": "LOW",
+    "chi": 79.18,
+    "message": "[LOW] r/science CHI=79.2 toxicity=4.52%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/nba",
+    "alert_level": "LOW",
+    "chi": 79.28,
+    "message": "[LOW] r/nba CHI=79.3 toxicity=10.93%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/nfl",
+    "alert_level": "LOW",
+    "chi": 79.73,
+    "message": "[LOW] r/nfl CHI=79.7 toxicity=11.19%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/CryptoCurrency",
+    "alert_level": "LOW",
+    "chi": 80.2,
+    "message": "[LOW] r/CryptoCurrency CHI=80.2 toxicity=10.32%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/Conservative",
+    "alert_level": "LOW",
+    "chi": 80.24,
+    "message": "[LOW] r/Conservative CHI=80.2 toxicity=10.59%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/Bitcoin",
+    "alert_level": "LOW",
+    "chi": 81.23,
+    "message": "[LOW] r/Bitcoin CHI=81.2 toxicity=7.98%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/leagueoflegends",
+    "alert_level": "LOW",
+    "chi": 81.48,
+    "message": "[LOW] r/leagueoflegends CHI=81.5 toxicity=9.26%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/soccer",
+    "alert_level": "LOW",
+    "chi": 81.71,
+    "message": "[LOW] r/soccer CHI=81.7 toxicity=9.23%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  },
+  {
+    "subreddit": "r/geopolitics",
+    "alert_level": "LOW",
+    "chi": 83.14,
+    "message": "[LOW] r/geopolitics CHI=83.1 toxicity=4.49%",
+    "timestamp": "2026-11-17T20:23:15.881286"
+  }
+]

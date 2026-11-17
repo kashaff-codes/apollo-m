@@ -1,0 +1,133 @@
+{
+  "name": "agreement with LLM-assigned labels (single labeller, not human ground truth)",
+  "n_sample": 300,
+  "n_unclear": 9,
+  "n_used": 291,
+  "labels": {
+    "not_toxic": 260,
+    "toxic": 31,
+    "unclear": 9
+  },
+  "labels_by_band": {
+    "not_toxic": {
+      "high": 78,
+      "low": 94,
+      "mid": 88
+    },
+    "toxic": {
+      "high": 21,
+      "low": 2,
+      "mid": 8
+    },
+    "unclear": {
+      "high": 1,
+      "low": 4,
+      "mid": 4
+    }
+  },
+  "bootstrap": 2000,
+  "threshold_0.6": {
+    "precision": 0.21212121212121213,
+    "recall": 0.6774193548387096,
+    "f1": 0.32307692307692304,
+    "ci95": {
+      "precision": [
+        0.13185425685425686,
+        0.29546614100185525
+      ],
+      "recall": [
+        0.5,
+        0.8421052631578947
+      ],
+      "f1": [
+        0.20967357910906298,
+        0.42761083743842354
+      ]
+    },
+    "confusion_matrix": {
+      "rows=label, cols=model": [
+        [
+          "",
+          "model_toxic",
+          "model_not_toxic"
+        ],
+        [
+          "label_toxic",
+          21,
+          10
+        ],
+        [
+          "label_not_toxic",
+          78,
+          182
+        ]
+      ]
+    },
+    "weighted_to_corpus": {
+      "precision": 0.21212121212121213,
+      "recall": 0.4534571448328393,
+      "f1": 0.28903547779756394
+    }
+  },
+  "threshold_0.5": {
+    "precision": 0.21818181818181817,
+    "recall": 0.7741935483870968,
+    "f1": 0.34042553191489366,
+    "ci95": {
+      "precision": [
+        0.1442286036036036,
+        0.29731678794178784
+      ],
+      "recall": [
+        0.6086568322981367,
+        0.9090909090909091
+      ],
+      "f1": [
+        0.236217738407699,
+        0.43708609271523174
+      ]
+    },
+    "confusion_matrix": {
+      "rows=label, cols=model": [
+        [
+          "",
+          "model_toxic",
+          "model_not_toxic"
+        ],
+        [
+          "label_toxic",
+          24,
+          7
+        ],
+        [
+          "label_not_toxic",
+          86,
+          174
+        ]
+      ]
+    },
+    "weighted_to_corpus": {
+      "precision": 0.21841941277042015,
+      "recall": 0.5210708166875193,
+      "f1": 0.30781199604521503
+    }
+  },
+  "profanity_share_by_cell_at_0.6": {
+    "fp": {
+      "n": 78,
+      "with_profanity": 52
+    },
+    "tp": {
+      "n": 21,
+      "with_profanity": 6
+    },
+    "tn": {
+      "n": 182,
+      "with_profanity": 18
+    },
+    "fn": {
+      "n": 10,
+      "with_profanity": 0
+    }
+  }
+}

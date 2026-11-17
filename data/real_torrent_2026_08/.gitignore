@@ -1,0 +1,4 @@
+# Comment-level data for the RC_2026-08 torrent run: contains usernames and comment text.
+# Never commit anything in this folder except this file.
+*
+!.gitignore

@@ -1,0 +1,29 @@
+{
+  "active_dataset": "real Reddit, Academic Torrents monthly dump RC_2026-08 (Arctic Shift)",
+  "infohash": "f4848163a5fb650e4b15eee0202858447bca120a",
+  "dump_sha256": "30da6cc45cb9b6cad5a910888bcebeb3213715365d3373e9bcd9f1d01850deaa",
+  "filter": {
+    "subreddits": 39,
+    "cap_per_subreddit_per_day": 1000,
+    "seed": 42,
+    "window": [
+      "2026-08-01",
+      "2026-08-31"
+    ]
+  },
+  "scoring": {
+    "model": "unitary/toxic-bert",
+    "comments_scored": 1087806,
+    "threshold": 0.6
+  },
+  "comments": 1087806,
+  "communities_analysed": 39,
+  "communities_forecast": 38,
+  "authors": 450940,
+  "days": 31,
+  "date_range": [
+    "2026-08-01",
+    "2026-08-31"
+  ],
+  "note": "Every value in this folder is computed from this corpus by scripts/local/torrent_2026_08/. Comments are a capped sample (<= 1000 per subreddit per day), so churn measures author overlap within the sample. Benchmark (planted ground truth) results are not in this folder."
+}

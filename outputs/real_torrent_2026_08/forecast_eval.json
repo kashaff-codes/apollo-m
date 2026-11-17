@@ -1,0 +1,108 @@
+{
+  "what_is_predicted": "the last 5 observed days of each community's run, from the 14 days before them, by a model trained on time_idx <= max - 5 (existing TFTForecaster behaviour); NOT future days",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "canonical_seed": 42,
+  "device": "cpu",
+  "train_seconds": {
+    "42": 3.2,
+    "43": 2.9,
+    "44": 2.7
+  },
+  "config": {
+    "max_epochs": 6,
+    "lookback": 14,
+    "horizon": 5
+  },
+  "per_seed": {
+    "42": {
+      "communities": 38,
+      "failed_communities": [],
+      "predicted_days_out_of_sample": 190,
+      "predicted_days_total": 190,
+      "mae_tft_p50": 0.020079297161009438,
+      "mae_persistence": 0.016325757894736843,
+      "mae_mean14": 0.011361317293233083,
+      "communities_tft_beats_persistence": 18,
+      "communities_tft_beats_mean14": 12,
+      "coverage_p10_p90": 0.8368421052631579,
+      "mean_interval_width_by_day": {
+        "1": 0.070714,
+        "2": 0.074296,
+        "3": 0.07629,
+        "4": 0.077408,
+        "5": 0.078066
+      },
+      "width_day5_gt_day1": true,
+      "share_communities_width_nondecreasing": 1.0,
+      "share_day1_p50_inside_encoder_range": 0.8157894736842105,
+      "quantile_order_ok": true
+    },
+    "43": {
+      "communities": 38,
+      "failed_communities": [],
+      "predicted_days_out_of_sample": 190,
+      "predicted_days_total": 190,
+      "mae_tft_p50": 0.021071292331281462,
+      "mae_persistence": 0.016325757894736843,
+      "mae_mean14": 0.011361317293233083,
+      "communities_tft_beats_persistence": 18,
+      "communities_tft_beats_mean14": 8,
+      "coverage_p10_p90": 0.9,
+      "mean_interval_width_by_day": {
+        "1": 0.081052,
+        "2": 0.081505,
+        "3": 0.082134,
+        "4": 0.082739,
+        "5": 0.08334
+      },
+      "width_day5_gt_day1": true,
+      "share_communities_width_nondecreasing": 0.7894736842105263,
+      "share_day1_p50_inside_encoder_range": 0.7105263157894737,
+      "quantile_order_ok": true
+    },
+    "44": {
+      "communities": 38,
+      "failed_communities": [],
+      "predicted_days_out_of_sample": 190,
+      "predicted_days_total": 190,
+      "mae_tft_p50": 0.01853639378913076,
+      "mae_persistence": 0.016325757894736843,
+      "mae_mean14": 0.011361317293233083,
+      "communities_tft_beats_persistence": 19,
+      "communities_tft_beats_mean14": 11,
+      "coverage_p10_p90": 0.8052631578947368,
+      "mean_interval_width_by_day": {
+        "1": 0.064057,
+        "2": 0.065349,
+        "3": 0.06623,
+        "4": 0.066899,
+        "5": 0.067441
+      },
+      "width_day5_gt_day1": true,
+      "share_communities_width_nondecreasing": 0.868421052631579,
+      "share_day1_p50_inside_encoder_range": 0.8421052631578947,
+      "quantile_order_ok": true
+    }
+  },
+  "across_seeds": {
+    "p50_range_per_community_day_mean": 0.0113289066051182,
+    "p50_range_per_community_day_max": 0.03299681842327118,
+    "mae_tft_p50_min_max": [
+      0.01853639378913076,
+      0.021071292331281462
+    ],
+    "coverage_min_max": [
+      0.8052631578947368,
+      0.9
+    ],
+    "communities_beating_persistence_per_seed": [
+      18,
+      18,
+      19
+    ]
+  }
+}
