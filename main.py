@@ -182,6 +182,14 @@ class DataLoader_APOLLO:
                 )
             log.info("Graph: %d nodes, %d edges", graph.number_of_nodes(), graph.number_of_edges())
             return graph
+        log.warning(
+            "SNAP hyperlink graph not found at %s. "
+            "Download it with:\n"
+            "  wget -O data/reddit_hyperlinks.tsv "
+            "https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv\n"
+            "Falling back to synthetic graph — polarization values will be MEANINGLESS.",
+            self.cfg.HYPERLINKS_FILE,
+        )
         return self._synthetic_graph()
 
     def load_cybersecurity_data(self) -> pd.DataFrame:
@@ -255,6 +263,64 @@ class DataLoader_APOLLO:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIME-SERIES HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+# Accounts that are bots: AutoModerator and names like "x-bot" / "x_bot" / "bot-x".
+BOT_AUTHOR_RE = r"(?i)^automoderator$|[-_]bot$|^bot[-_]"
+
+
+def drop_bots_and_boilerplate(df: pd.DataFrame, min_repeats: int = 5, min_len: int = 100) -> pd.DataFrame:
+    """Remove bot accounts and canned text (the same long body posted min_repeats+ times).
+
+    Short repeated bodies such as "lol" are real people and are kept. Returns a new frame.
+    """
+    author = df["author"].astype(str)
+    body = df["body"].astype(str)
+    is_bot = author.str.contains(BOT_AUTHOR_RE, regex=True)
+    repeats = body.map(body.value_counts())
+    is_boiler = (repeats >= min_repeats) & (body.str.len() >= min_len)
+    drop = is_bot | is_boiler
+    log.info(
+        "Dropped %d bot / boilerplate comments (%d bot-account, %d repeated text); %d remain",
+        int(drop.sum()), int(is_bot.sum()), int((is_boiler & ~is_bot).sum()), int((~drop).sum()),
+    )
+    return df.loc[~drop].reset_index(drop=True)
+
+
+def flag_insufficient_history(report: pd.DataFrame, comments_df: pd.DataFrame, min_days: int = 7) -> pd.DataFrame:
+    """Add observed_days and insufficient_history to a per-subreddit report.
+
+    A subreddit seen on fewer than min_days days has churn / trend values that mean
+    'not enough data', not 'healthy'. The existing values are left untouched.
+    """
+    bare_c = comments_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+    day = _to_utc_datetime(comments_df["created_utc"]).dt.floor("D")
+    days = day.groupby(bare_c).nunique()
+    bare_r = report["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+    out = report.copy()
+    out["observed_days"] = bare_r.map(days).fillna(0).astype(int)
+    out["insufficient_history"] = out["observed_days"] < min_days
+    return out
+
+
+def _to_utc_datetime(ts: pd.Series) -> pd.Series:
+    """Parse a created_utc column to UTC datetimes, value by value.
+
+    Handles real datetimes, unix seconds (int/float/numeric strings) and ISO strings,
+    including a column that mixes them. Unparseable values become NaT.
+    """
+    if pd.api.types.is_datetime64_any_dtype(ts):
+        return pd.to_datetime(ts, utc=True, errors="coerce")
+    num = pd.to_numeric(ts, errors="coerce")
+    out = pd.to_datetime(num, unit="s", utc=True, errors="coerce")
+    text_mask = num.isna() & ts.notna()
+    if text_mask.any():
+        try:  # format="mixed": each string is parsed on its own (pandas >= 2)
+            parsed = pd.to_datetime(ts[text_mask], utc=True, errors="coerce", format="mixed")
+        except (TypeError, ValueError):
+            parsed = pd.to_datetime(ts[text_mask], utc=True, errors="coerce")
+        out.loc[text_mask] = parsed
+    return out
+
+
 def aggregate_daily_with_embeddings(
     comments_df: pd.DataFrame, embeddings: np.ndarray
 ) -> pd.DataFrame:
@@ -264,7 +330,8 @@ def aggregate_daily_with_embeddings(
     for idx, col in enumerate(embed_cols):
         df[col] = embeddings[:, idx]
 
-    df["date"] = pd.to_datetime(df["created_utc"]).dt.floor("D")
+    # created_utc may be datetimes, unix seconds or ISO strings (even mixed): parse per value.
+    df["date"] = _to_utc_datetime(df["created_utc"]).dt.floor("D")
     agg_spec: dict = {
         "toxicity_score": "mean",
         "is_toxic": "mean",
@@ -282,10 +349,14 @@ def aggregate_daily_with_embeddings(
     )
 
     daily = daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
-    daily["time_idx"] = daily.groupby("subreddit").cumcount()
+    # Calendar day number (a missing day stays a gap); the TFT recomputes it from dates anyway.
+    daily["time_idx"] = (daily["date"] - daily["date"].min()).dt.days
     daily["group_id"] = daily["subreddit"]
-    daily["avg_toxicity"] = daily["avg_toxicity"].fillna(0).clip(0, 1)
-    daily["toxic_rate"] = daily["toxic_rate"].fillna(0).clip(0, 1)
+    # Do NOT fillna(0) — missing days must stay NaN so the forecaster knows
+    # there was no data, not a healthy day.  Drop rows with no toxicity signal.
+    daily = daily.dropna(subset=["avg_toxicity", "toxic_rate"])
+    daily["avg_toxicity"] = daily["avg_toxicity"].clip(0, 1)
+    daily["toxic_rate"] = daily["toxic_rate"].clip(0, 1)
     daily["comment_count"] = daily["comment_count"].clip(lower=1)
     return daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
 
@@ -675,6 +746,7 @@ class MacroLayer:
             embed_pca_components=cfg.EMBED_PCA_COMPONENTS,
             model_dir=cfg.MODEL_DIR,
             quantiles=FORECAST_QUANTILES,
+            use_comment_count=False,   # daily counts mostly mirror the scraper's page size
         )
         self.tft = TFTForecaster(tft_config)
 
@@ -691,6 +763,21 @@ class MacroLayer:
         if cache_path.exists():
             log.info("[INFO] Loading extracted embeddings from cache...")
             processed_df = pd.read_csv(cache_path)
+            if "id" in processed_df.columns and "id" in comments_df.columns:
+                cached_ids = set(processed_df["id"].astype(str))
+                current_ids = set(comments_df["id"].astype(str))
+                missing = len(current_ids - cached_ids)
+                if missing:
+                    raise RuntimeError(
+                        f"Embeddings cache {cache_path} is stale: {missing:,} current comments have no "
+                        "cached embedding. Refusing to forecast from a different corpus. Move the cache "
+                        "aside and rebuild it (slow), or point EMBEDDINGS_CACHE at the matching file."
+                    )
+                extra = len(cached_ids - current_ids)
+                if extra:
+                    # e.g. bot comments filtered out of this run: they must not reach the daily series.
+                    log.warning("Embeddings cache has %d rows not in the current comments; ignoring them.", extra)
+                    processed_df = processed_df[processed_df["id"].astype(str).isin(current_ids)].reset_index(drop=True)
             if "created_utc" in processed_df.columns:
                 ts = processed_df["created_utc"]
                 if pd.api.types.is_numeric_dtype(ts):
@@ -709,9 +796,12 @@ class MacroLayer:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_df = processed_df.copy()
         if "created_utc" in cache_df.columns:
+            # Always store unix SECONDS (nullable int, so a bad value cannot crash the write).
+            # pd.to_numeric on a datetime column would give nanoseconds, so parse via datetimes.
+            _dt = _to_utc_datetime(cache_df["created_utc"])
             cache_df["created_utc"] = (
-                pd.to_datetime(cache_df["created_utc"]).astype("int64") // 10**9
-            )
+                (_dt - pd.Timestamp("1970-01-01", tz="UTC")) // pd.Timedelta(seconds=1)
+            ).astype("Int64")
         cache_df.to_csv(cache_path, index=False)
         return self.build_timeseries(comments_df, embeddings)
 
@@ -739,7 +829,8 @@ class MacroLayer:
             normalized = (
                 target_subreddit if target_subreddit.startswith("r/") else f"r/{target_subreddit}"
             )
-            filtered = daily_df[daily_df["subreddit"] == normalized]
+            _b = daily_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+            filtered = daily_df[_b == normalized[2:]]
             if filtered.empty:
                 log.warning("Subreddit %s not found in daily series; using all data.", normalized)
             else:
@@ -750,25 +841,61 @@ class MacroLayer:
         self.tft.train(daily_df)
 
         eval_metrics = self.tft.evaluate(daily_df)
+        bt = self.tft.last_backtest
+        if bt is not None and not bt.empty:
+            bt.to_csv(self.cfg.OUTPUT_DIR / "forecast_backtest.csv", index=False)
+            log.info(
+                "Backtest on held-out last %d days (%d subreddits): TFT MAE=%.4f | last-value MAE=%.4f | "
+                "recent-mean MAE=%.4f | TFT beats last-value in %d/%d | p10-p90 coverage=%.0f%%",
+                self.tft.config.forecast_horizon, len(bt), eval_metrics["mae"],
+                eval_metrics["baseline_last_value_mae"], eval_metrics["baseline_recent_mean_mae"],
+                int((bt["mae_tft"] < bt["mae_last_value"]).sum()), len(bt),
+                100 * bt["inside_p10_p90"].mean(),
+            )
         preferred = target_subreddit
         if preferred and not preferred.startswith("r/"):
             preferred = f"r/{preferred}"
-        forecast = self.tft.predict_quantiles(daily_df, subreddit=preferred)
+        # future=True: forecast the days AFTER the last observed day (the default would
+        # re-predict the last 5 observed days and label them as future dates).
+        forecast = self.tft.predict_quantiles(daily_df, subreddit=preferred, future=True)
         if not forecast:
             raise RuntimeError("TFT prediction failed: no forecast generated for trained subreddits.")
 
-        subreddit = forecast["subreddit"]
-        start_date = pd.to_datetime(
-            daily_df.loc[daily_df["subreddit"] == subreddit, "date"].max()
-        )
-        forecast_df = self.tft.save_forecast_csv(
-            forecast,
-            subreddit=subreddit,
-            start_date=start_date,
-            output_path=self.cfg.OUTPUT_DIR / "forecast_results.csv",
-        )
+        # The forecaster labels subreddits "r/<name>"; daily series use bare names.
+        # Compare on the bare name or every lookup comes back empty (-> NaT dates).
+        _bare = daily_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
 
-        history = daily_df[daily_df["subreddit"] == subreddit]["avg_toxicity"].values[
+        def _last_date(label: str):
+            return pd.to_datetime(daily_df.loc[_bare == label.removeprefix("r/"), "date"].max())
+
+        # Forecast every subreddit with enough history, not just one.
+        all_forecasts = {forecast["subreddit"]: forecast}
+        for label in self.tft.eligible_subreddits(daily_df):
+            if label in all_forecasts:
+                continue
+            extra = self.tft.predict_quantiles(daily_df, subreddit=label, future=True)
+            if extra and extra.get("subreddit") == label:
+                all_forecasts[label] = extra
+
+        frames = []
+        for label, fc in all_forecasts.items():
+            start = _last_date(label)
+            if pd.isna(start):
+                log.warning("No valid last date for %s; skipping its forecast.", label)
+                continue
+            frames.append(self.tft.save_forecast_csv(
+                fc, subreddit=label, start_date=start,
+                output_path=self.cfg.OUTPUT_DIR / "forecast_results.csv", write=False,
+            ))
+        if not frames:
+            raise RuntimeError("TFT forecast produced no usable subreddit forecasts.")
+        forecast_df = pd.concat(frames, ignore_index=True)
+        out_path = self.cfg.OUTPUT_DIR / "forecast_results.csv"
+        forecast_df.to_csv(out_path, index=False)
+        log.info("Forecast saved for %d subreddits -> %s", len(frames), out_path)
+
+        subreddit = forecast["subreddit"]
+        history = daily_df.loc[_bare == subreddit.removeprefix("r/"), "avg_toxicity"].values[
             -self.cfg.LOOKBACK_WINDOW :
         ]
         self.plot_forecast(history, forecast, subreddit)
