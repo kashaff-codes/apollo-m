@@ -99,8 +99,17 @@ def _sql_band():
     return band
 
 
+def _imports_canonical(path: str) -> bool:
+    tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+    return any(isinstance(n, ast.ImportFrom) and n.module == "apollo_bands"
+               and any(a.name == "alert_band" for a in n.names) for n in ast.walk(tree))
+
+
+def test_api_uses_the_canonical_bands_rather_than_a_copy():
+    assert _imports_canonical("api/main.py")
+
+
 SURFACES = {
-    "api/main.py": lambda: _lift("api/main.py", ("band",)),
     "database/db_setup.py": lambda: _lift("database/db_setup.py", ("band",)),
     "monitoring/exporter.py": lambda: _lift("monitoring/exporter.py", ("_band",)),
     "compute_real_metrics.py": lambda: _lift("compute_real_metrics.py", ("band",)),
