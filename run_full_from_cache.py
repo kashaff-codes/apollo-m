@@ -9,7 +9,10 @@ Same steps as APOLLOPipeline.run_full_pipeline, but:
   * existing outputs are copied to outputs_backup_before_full/ first
     (copy only, never overwrites a backup, never deletes);
   * data/apollo_daily.csv and data/ground_truth.json are never written, and the
-    script checks them against git at the end.
+    script checks them against git at the end;
+  * outputs go to outputs/real_arctic_2026_10/, not top-level outputs/. Top-level
+    outputs/ is the 60-community benchmark that the paper's reproduction scripts
+    read; writing this corpus there replaced it (see apollo_datasets.py).
 
   OMP_NUM_THREADS=1 OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES python run_full_from_cache.py
 """
@@ -22,17 +25,25 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
+from apollo_datasets import get as _dataset
+OUT = _dataset("real_arctic_2026_10").path
+OUT.mkdir(parents=True, exist_ok=True)
+
 # ── 0. back up current outputs (copy only) ────────────────────────────────
-bk = ROOT / "outputs_backup_before_full"
+bk = ROOT / "outputs_backup_before_full" / OUT.name
 bk.mkdir(parents=True, exist_ok=True)
 n = 0
-for f in (ROOT / "outputs").iterdir():
+for f in OUT.iterdir():
     if f.is_file() and not (bk / f.name).exists():
         shutil.copy2(f, bk / f.name); n += 1
 log.info("Backed up %d output files -> %s", n, bk)
 
 import pandas as pd
 from main import Config, APOLLOPipeline, drop_bots_and_boilerplate, flag_insufficient_history
+# Class attribute, not just the instance: AlertSystem.save_alerts reads
+# Config.OUTPUT_DIR directly, so an instance override alone would still drop the
+# alerts file into the benchmark directory.
+Config.OUTPUT_DIR = OUT
 cfg = Config()
 pipe = APOLLOPipeline(cfg)
 

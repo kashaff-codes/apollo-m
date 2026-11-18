@@ -1,0 +1,27 @@
+==================================================
+APOLLO-M EDA & PREPROCESSING REPORT
+==================================================
+Raw rows loaded:        246,268
+Columns:                ['id', 'subreddit', 'author', 'body', 'score', 'created_utc', 'date', 'group_id', 'toxicity_score', 'is_toxic', 'toxicity_label']
+Unique subreddits:      38
+After null drop:        246,268 rows
+Duplicates removed:     29
+After text cleaning:    246,239 rows
+Overall toxic rate:     11.61%
+Flagged toxic rate:     9.21%
+
+Top 10 most active subreddits:
+  r/TwoXChromosomes: 11,356 posts
+  r/nfl: 10,816 posts
+  r/todayilearned: 10,692 posts
+  r/SuicideWatch: 10,274 posts
+  r/gonewild: 9,499 posts
+  r/soccer: 9,028 posts
+  r/Conservative: 8,907 posts
+  r/gaming: 8,549 posts
+  r/conspiracy: 8,482 posts
+  r/leagueoflegends: 8,394 posts
+
+Final clean rows:       246,239
+Rows removed total:     29 (0.0%)
+==================================================
