@@ -20,7 +20,7 @@ function Submit({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-md bg-emerald-500 px-4 py-2 font-medium text-black transition hover:bg-emerald-400 disabled:opacity-50"
+      className="w-full rounded-md bg-violet px-4 py-2 font-medium text-white transition hover:bg-violet-deep disabled:opacity-50"
     >
       {pending ? "Working…" : label}
     </button>
@@ -35,17 +35,17 @@ function LoginForm() {
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="text-xl font-semibold tracking-tight">
+      <h1 className="font-serif text-4xl tracking-tight">
         {mode === "in" ? "Sign in" : "Create an account"}
       </h1>
-      <p className="mt-1 text-sm text-white/50">
+      <p className="mt-1 text-sm text-ink/60">
         Supabase Auth, email and password.
       </p>
 
       <form action={formAction} className="mt-6 space-y-4">
         <input type="hidden" name="next" value={next} />
         <div>
-          <label htmlFor="email" className="block text-xs text-white/60">
+          <label htmlFor="email" className="block text-xs text-ink/70">
             Email
           </label>
           <input
@@ -54,11 +54,11 @@ function LoginForm() {
             type="email"
             required
             autoComplete="email"
-            className="mt-1 w-full rounded-md bg-white/5 px-3 py-2 ring-1 ring-white/15 outline-none focus:ring-emerald-500"
+            className="mt-1 w-full rounded-md bg-card px-3 py-2 ring-1 ring-ink/20 outline-none focus:ring-violet"
           />
         </div>
         <div>
-          <label htmlFor="password" className="block text-xs text-white/60">
+          <label htmlFor="password" className="block text-xs text-ink/70">
             Password
           </label>
           <input
@@ -68,17 +68,17 @@ function LoginForm() {
             required
             minLength={8}
             autoComplete={mode === "in" ? "current-password" : "new-password"}
-            className="mt-1 w-full rounded-md bg-white/5 px-3 py-2 ring-1 ring-white/15 outline-none focus:ring-emerald-500"
+            className="mt-1 w-full rounded-md bg-card px-3 py-2 ring-1 ring-ink/20 outline-none focus:ring-violet"
           />
         </div>
 
         {state.error && (
-          <p role="alert" className="text-sm text-rose-300">
+          <p role="alert" className="text-sm text-[#a32727]">
             {state.error}
           </p>
         )}
         {state.message && (
-          <p role="status" className="text-sm text-emerald-300">
+          <p role="status" className="text-sm text-violet">
             {state.message}
           </p>
         )}
@@ -88,7 +88,7 @@ function LoginForm() {
 
       <button
         onClick={() => setMode(mode === "in" ? "up" : "in")}
-        className="mt-4 text-sm text-white/50 hover:text-white"
+        className="mt-4 text-sm text-ink/60 hover:text-ink"
       >
         {mode === "in"
           ? "No account? Create one"

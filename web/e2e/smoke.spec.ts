@@ -95,29 +95,45 @@ test("no cell renders NaN", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText("NaN");
 });
 
-test("the dark palette survives a light-mode system preference", async ({
+test("the palette does not depend on the visitor's system preference", async ({
   page,
 }) => {
-  // Regression guard. globals.css shipped create-next-app's boilerplate — light
-  // tokens plus a prefers-color-scheme:dark override — and that unlayered `body`
-  // rule outranked Tailwind's layered `bg-[#0b0f14]` utility. Every component is
-  // written for a dark ground, so on a machine set to light the page rendered
-  // near-white text on white. It looked correct on any dark-mode machine, which
-  // is why reading the text instead of the pixels missed it.
-  await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/");
+  // Regression guard. globals.css once shipped create-next-app's boilerplate —
+  // light tokens plus a prefers-color-scheme:dark override — and that unlayered
+  // `body` rule outranked Tailwind's layered utilities. Components were written
+  // for one ground, so under the other preference the page rendered near-white
+  // text on white. It looked correct on the author's machine, which is why
+  // reading the text instead of the pixels missed it.
+  //
+  // The page now commits to Occuris paper. What must hold is that it is the
+  // same under both preferences, and that body text is readable on it.
+  const colours = async (scheme: "light" | "dark") => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto("/");
+    return page.locator("body").evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, fg: s.color };
+    });
+  };
+  const light = await colours("light");
+  const dark = await colours("dark");
+  expect(dark, "the page changed with the system colour scheme").toEqual(light);
 
-  const bg = await page
-    .locator("body")
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-
-  // Parse rather than string-match, so an equivalent notation still passes.
-  const [r, g, b] = bg.match(/\d+/g)!.map(Number);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  expect(
-    luminance,
-    `body background was ${bg}, which is not dark`,
-  ).toBeLessThan(0.25);
+  // WCAG relative luminance, parsed rather than string-matched.
+  const lum = (c: string) => {
+    const [r, g, b] = c
+      .match(/\d+(\.\d+)?/g)!
+      .slice(0, 3)
+      .map(Number)
+      .map((v) => {
+        const x = v / 255;
+        return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [lum(light.bg), lum(light.fg)].sort((a, b) => b - a);
+  const contrast = (hi + 0.05) / (lo + 0.05);
+  expect(contrast, `body text ${light.fg} on ${light.bg}`).toBeGreaterThan(7);
 });
 
 test("a failed sign-in points at sign-up instead of a dead end", async ({

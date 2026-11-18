@@ -32,11 +32,28 @@ export type WatchlistRow = {
   created_at: string;
 };
 
-/** Tailwind classes per alert band. Kept beside the type so a new band cannot
- *  be added without the compiler pointing here. */
+/** Tailwind classes per alert band, for the paper ground. Kept beside the type
+ *  so a new band cannot be added without the compiler pointing here. Text uses
+ *  a darkened step of each status colour so the label clears 4.5:1. */
 export const ALERT_STYLE: Record<Alert, string> = {
-  LOW: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30",
-  MEDIUM: "bg-sky-500/10 text-sky-300 ring-sky-500/30",
-  HIGH: "bg-amber-500/10 text-amber-300 ring-amber-500/30",
-  CRITICAL: "bg-rose-500/10 text-rose-300 ring-rose-500/30",
+  LOW: "bg-[#0ca30c]/10 text-[#0b6b0b] ring-[#0ca30c]/35",
+  MEDIUM: "bg-[#fab219]/15 text-[#7a5300] ring-[#fab219]/50",
+  HIGH: "bg-[#ec835a]/15 text-[#9a3f17] ring-[#ec835a]/45",
+  CRITICAL: "bg-[#d03b3b]/10 text-[#a32727] ring-[#d03b3b]/40",
+};
+
+/** The status palette shared with the console (apollo-m/apollo_bands.py). */
+export const ALERT_COLOR: Record<Alert, string> = {
+  CRITICAL: "#d03b3b",
+  HIGH: "#ec835a",
+  MEDIUM: "#fab219",
+  LOW: "#0ca30c",
+};
+
+/** A band is never colour alone: each also has a shape. */
+export const ALERT_ICON: Record<Alert, string> = {
+  CRITICAL: "✕",
+  HIGH: "▲",
+  MEDIUM: "◆",
+  LOW: "●",
 };
