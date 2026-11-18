@@ -97,14 +97,23 @@ class TFTForecaster:
             key=lambda name: int(name.split("_", 1)[1]),
         )
 
-    def fit_embedding_pca(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Reduce high-dimensional text embeddings for TFT covariate injection."""
+    def fit_embedding_pca(self, df: pd.DataFrame, fit_until: Optional[int] = None) -> pd.DataFrame:
+        """Reduce high-dimensional text embeddings for TFT covariate injection.
+
+        `fit_until` is the last time_idx the model trains on. The PCA is fitted
+        on rows up to it and only *applied* to the rest. Fitting it on every row,
+        as before, let the held-out days shape the covariates the backtest then
+        scored them with — a mild leak Aaqib flagged in his November summary.
+        """
         self.raw_embedding_cols = self._resolve_embedding_columns(df)
         if not self.raw_embedding_cols:
             self.embedding_cols = []
             return df
 
-        matrix = df[self.raw_embedding_cols].fillna(0.0).values
+        fit_rows = df if fit_until is None else df[df["time_idx"] <= fit_until]
+        if fit_rows.empty:
+            fit_rows = df
+        matrix = fit_rows[self.raw_embedding_cols].fillna(0.0).values
         n_components = min(
             self.config.embed_pca_components,
             matrix.shape[0],
@@ -115,7 +124,8 @@ class TFTForecaster:
             return df
 
         self.pca = PCA(n_components=n_components, random_state=42)
-        reduced = self.pca.fit_transform(matrix)
+        self.pca.fit(matrix)
+        reduced = self.pca.transform(df[self.raw_embedding_cols].fillna(0.0).values)
         self.embedding_cols = [f"emb_pca_{i}" for i in range(n_components)]
         for idx, col in enumerate(self.embedding_cols):
             df[col] = reduced[:, idx]
@@ -251,7 +261,12 @@ class TFTForecaster:
         """Train TFT via PyTorch Lightning."""
         df = self.prepare_dataframe(daily_df)
         self.origin_date = df["date"].dt.normalize().min()
-        df = self.fit_embedding_pca(df)
+        # The same cutoff build_dataset applies: the last forecast_horizon days of
+        # the eligible series are held out, so the PCA must not see them either.
+        eligible = self._eligible_counts(df).index
+        fit_until = (int(df.loc[df["subreddit"].isin(eligible), "time_idx"].max()) - self.config.forecast_horizon
+                     if len(eligible) else None)
+        df = self.fit_embedding_pca(df, fit_until=fit_until)
         dataset = self.build_dataset(df, for_training=True)
         if not isinstance(dataset, TimeSeriesDataSet):
             # build_dataset returns an empty DataFrame when no subreddit has enough history.

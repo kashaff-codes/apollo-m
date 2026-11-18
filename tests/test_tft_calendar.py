@@ -72,3 +72,29 @@ def test_future_rows_continue_after_last_observed_day():
     assert out["time_idx"].tail(5).tolist() == [20, 21, 22, 23, 24]
     assert out["date"].iloc[-1] == pd.Timestamp("2026-10-23", tz="UTC") + pd.Timedelta(days=24)
     assert not out[["avg_toxicity", "toxic_rate", "comment_count"]].isna().any().any()
+
+
+def test_embedding_pca_is_fitted_on_training_days_only():
+    """
+    The held-out days must not shape the covariates they are scored with.
+
+    The last forecast_horizon days get embeddings far from the rest. If the PCA
+    were fitted on every row (the old behaviour), its mean would be pulled
+    towards them; fitted on training rows only, it equals the training mean.
+    """
+    import numpy as np
+    import pandas as pd
+    from models.tft_forecaster import TFTConfig, TFTForecaster
+
+    f = TFTForecaster(TFTConfig(forecast_horizon=5, lookback_window=14, embed_pca_components=2))
+    rows = []
+    for d in range(30):
+        rows.append({"subreddit": "r/a", "date": pd.Timestamp("2026-08-01") + pd.Timedelta(days=d),
+                     "avg_toxicity": 0.1, "toxic_rate": 0.05, "comment_count": 100,
+                     "embed_0": 100.0 if d >= 25 else float(d % 3), "embed_1": float(d % 2),
+                     "embed_2": 0.0})
+    df = f.prepare_dataframe(pd.DataFrame(rows))
+    out = f.fit_embedding_pca(df.copy(), fit_until=24)
+    train_mean = df.loc[df["time_idx"] <= 24, ["embed_0", "embed_1", "embed_2"]].mean().to_numpy()
+    assert np.allclose(f.pca.mean_, train_mean)
+    assert {"emb_pca_0", "emb_pca_1"} <= set(out.columns) and out["emb_pca_0"].notna().all()
