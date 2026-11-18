@@ -60,3 +60,22 @@ services:
 # fails with "cannot have more than one active free tier database" because
 # cerebro-db already occupies that slot, and it would cancel the web service
 # along with it.
+
+  # ── Monitoring: Prometheus + Grafana, public and read-only ──────────────
+  # monitoring/hosted/Dockerfile. Prometheus scrapes this API's /metrics and
+  # CEREBRO's; Grafana opens to the APOLLO-M dashboards for anyone, without an
+  # account (anonymous Viewer). Before this, both ran only on a developer's
+  # laptop, so every Grafana/Prometheus link in the deployed console pointed at
+  # localhost — the visitor's own machine.
+  - type: web
+    name: apollo-m-monitoring
+    runtime: docker
+    plan: free
+    dockerfilePath: ./monitoring/hosted/Dockerfile
+    dockerContext: ./monitoring/hosted
+    healthCheckPath: /api/health
+    envVars:
+      # Grafana's admin login, for editing. Viewing needs no login at all.
+      # Unset → a random password is generated at boot.
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        sync: false

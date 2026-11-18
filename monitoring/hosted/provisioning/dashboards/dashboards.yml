@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: apollo-m
+    folder: APOLLO-M
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

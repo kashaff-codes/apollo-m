@@ -1,0 +1,19 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:{$PORT:8080} {
+	encode gzip
+
+	# Prometheus serves itself under /prometheus (--web.route-prefix), so the
+	# path is passed through unchanged.
+	handle /prometheus* {
+		reverse_proxy 127.0.0.1:9090
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

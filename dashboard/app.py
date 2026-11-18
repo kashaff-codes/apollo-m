@@ -63,8 +63,8 @@ WEB_URL = _os.getenv("APOLLO_WEB_URL", "https://apollo-m.vercel.app").rstrip("/"
 # Grafana serves the dashboard read-only to anonymous visitors, so these links
 # work for anyone — the earlier defaults pointed at localhost, which on any
 # other device is the visitor's own machine.
-GRAFANA_URL = _os.getenv("GRAFANA_URL", "https://apollo-grafana.onrender.com").rstrip("/")
-PROMETHEUS_URL = _os.getenv("PROMETHEUS_URL", f"{GRAFANA_URL}/prometheus").rstrip("/")
+GRAFANA_URL = _os.getenv("GRAFANA_URL", "https://apollo-m-monitoring.onrender.com").rstrip("/")
+PROMETHEUS_URL = _os.getenv("PROMETHEUS_URL", f"{GRAFANA_URL}/prometheus/")
 
 st.markdown(T.CSS, unsafe_allow_html=True)
 
