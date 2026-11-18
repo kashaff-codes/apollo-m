@@ -1,0 +1,106 @@
+{
+  "I1_science_vs_lowest": {
+    "lowest": "geopolitics",
+    "mean_science": 0.04519,
+    "mean_lowest": 0.04489,
+    "diff": 0.0003,
+    "comment_level_95ci": [
+      -0.00256,
+      0.00317
+    ],
+    "day_bootstrap_95ci": [
+      -0.00491,
+      0.00558
+    ],
+    "share_of_bootstrap_with_science_lower": 0.463,
+    "n_comments": [
+      31000,
+      16414
+    ],
+    "days": 31
+  },
+  "I2_dbscan": {
+    "outliers_here": 34,
+    "communities_here": 39,
+    "outliers_august": 24,
+    "communities_august": 24,
+    "eps": 0.5,
+    "min_samples": 5,
+    "distance_to_4th_neighbour_median": 1.043,
+    "distance_to_4th_neighbour_min": 0.464,
+    "points_with_4th_neighbour_within_eps": 1
+  },
+  "I3_gnn_raw": {
+    "here_min_max": [
+      1e-06,
+      1.1e-05
+    ],
+    "here_distinct_at_6dp": 9,
+    "august_min_max": [
+      1e-06,
+      3e-06
+    ]
+  },
+  "I4_churn_vs_cap": {
+    "spearman_churn_vs_precap_volume": 0.377,
+    "median_churn_capped_25plus_days": 0.7754,
+    "median_churn_capped_fewer_days": 0.6911,
+    "n_capped_25plus_days": 28,
+    "n_other": 11,
+    "august_churn_min_max": [
+      0.5942,
+      0.957
+    ]
+  },
+  "I5_tft": {
+    "per_seed": {
+      "42": {
+        "bias_mean_p50_minus_actual": 0.00285,
+        "slope_error_vs_community_level": -0.408,
+        "spread_of_community_mean_p50": 0.0309,
+        "spread_of_community_mean_actual": 0.0439,
+        "mae_by_day": {
+          "1": 0.01858,
+          "2": 0.0182,
+          "3": 0.02247,
+          "4": 0.02257,
+          "5": 0.01857
+        },
+        "direction_agreement_day1_to_day5": 0.474,
+        "day1_p50_inside_encoder_range": 0.816
+      },
+      "43": {
+        "bias_mean_p50_minus_actual": 0.00329,
+        "slope_error_vs_community_level": -0.375,
+        "spread_of_community_mean_p50": 0.0335,
+        "spread_of_community_mean_actual": 0.0439,
+        "mae_by_day": {
+          "1": 0.02038,
+          "2": 0.01927,
+          "3": 0.02235,
+          "4": 0.02253,
+          "5": 0.02083
+        },
+        "direction_agreement_day1_to_day5": 0.474,
+        "day1_p50_inside_encoder_range": 0.711
+      },
+      "44": {
+        "bias_mean_p50_minus_actual": -0.00327,
+        "slope_error_vs_community_level": -0.416,
+        "spread_of_community_mean_p50": 0.0292,
+        "spread_of_community_mean_actual": 0.0439,
+        "mae_by_day": {
+          "1": 0.01706,
+          "2": 0.01597,
+          "3": 0.02134,
+          "4": 0.0208,
+          "5": 0.01752
+        },
+        "direction_agreement_day1_to_day5": 0.447,
+        "day1_p50_inside_encoder_range": 0.842
+      }
+    },
+    "median_within_community_daily_sd": 0.0133,
+    "note": "slope < 0 means the TFT pulls every community toward the cross-community mean (over-predicts low communities, under-predicts high ones)"
+  }
+}
