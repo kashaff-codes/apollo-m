@@ -185,7 +185,9 @@ def csv_query(path: str, columns: list[tuple[str, str]], ref="A") -> dict:
 
 
 def by_community(field: str) -> list:
-    return [{"id": "partitionByValues", "options": {"fields": ["subreddit"], "keepFields": False}}]
+    # One series per community, named "r/<community>" rather than "<field> <community>".
+    return [{"id": "partitionByValues", "options": {"fields": ["subreddit"], "keepFields": False}},
+            {"id": "renameByRegex", "options": {"regex": "^\S+ (.+)$", "renamePattern": "r/$1"}}]
 
 
 def corpus() -> dict:
@@ -254,9 +256,14 @@ def corpus() -> dict:
     ]
     return {
         "uid": "apollo-corpus", "title": "APOLLO-M · Corpus history", "tags": ["apollo-m"],
-        "timezone": "utc", "time": {"from": "2026-08-01T00:00:00.000Z", "to": "2026-11-16T00:00:00.000Z"},
+        # Opens on the RC_2026-08 window; the link below jumps to the rebuild's window.
+        "timezone": "utc", "time": {"from": "2026-07-31T00:00:00.000Z", "to": "2026-09-01T00:00:00.000Z"},
         "schemaVersion": 39, "version": 1, "editable": False, "graphTooltip": 1,
-        "links": [{"title": "Operations", "type": "link", "url": "/d/apollo-overview", "icon": "dashboard"}],
+        "links": [{"title": "Operations", "type": "link", "url": "/d/apollo-overview", "icon": "dashboard"},
+                  {"title": "RC_2026-08 (August)", "type": "link",
+                   "url": "/d/apollo-corpus?var-corpus=real_torrent_2026_08&from=2026-07-31T00:00:00Z&to=2026-09-01T00:00:00Z"},
+                  {"title": "Arctic Shift rebuild (Oct–Nov)", "type": "link",
+                   "url": "/d/apollo-corpus?var-corpus=real_arctic_2026_10&from=2026-10-22T00:00:00Z&to=2026-11-16T00:00:00Z"}],
         "panels": [tox, rate, bars, table], "templating": {"list": variables}, "annotations": {"list": []},
     }
 
