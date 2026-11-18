@@ -32,7 +32,7 @@ for f in (ROOT / "outputs").iterdir():
 log.info("Backed up %d output files -> %s", n, bk)
 
 import pandas as pd
-from main import Config, APOLLOPipeline
+from main import Config, APOLLOPipeline, drop_bots_and_boilerplate, flag_insufficient_history
 cfg = Config()
 pipe = APOLLOPipeline(cfg)
 
@@ -49,6 +49,7 @@ comments_df = comments_df[comments_df["toxicity_score"].notna()].reset_index(dro
 log.info("Using %d scored comments (%d unscored rows left out)", len(comments_df), before - len(comments_df))
 if comments_df.empty:
     raise SystemExit("No scored comments in the input file - score the corpus first (MICRO).")
+comments_df = drop_bots_and_boilerplate(comments_df)   # bots + canned text out of every layer
 comments_df = pipe.run_micro(comments_df)             # cached path: no toxic-bert inference
 community_toxicity = pipe.micro.compute_community_toxicity(comments_df)
 chm_results = pipe.run_meso(comments_df, graph)
@@ -59,6 +60,16 @@ alerts = [pipe.alerts.evaluate(c) for c in chm_results]
 pipe.alerts.save_alerts(alerts)
 features_df.to_csv(cfg.OUTPUT_DIR / "community_health_report.csv", index=False)
 community_toxicity.to_csv(cfg.OUTPUT_DIR / "toxicity_by_subreddit_daily.csv", index=False)
+
+# Mark subreddits with too few days: their churn/trend of 0 means "not enough data", not "healthy".
+for _name in ("meso_report.csv", "clusters_report.csv", "community_health_report.csv"):
+    _p = cfg.OUTPUT_DIR / _name
+    if _p.exists():
+        _r = pd.read_csv(_p)
+        if "subreddit" in _r.columns:
+            flag_insufficient_history(_r, comments_df).to_csv(_p, index=False)
+_m = pd.read_csv(cfg.OUTPUT_DIR / "meso_report.csv")
+log.info("Insufficient history (<7 days): %s", _m.loc[_m["insufficient_history"], "subreddit"].tolist())
 
 # ── benchmark guard ───────────────────────────────────────────────────────
 # Compare with Kashaf's version on origin/main (local HEAD may hold older commits of ours).

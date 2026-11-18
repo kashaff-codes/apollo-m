@@ -43,6 +43,9 @@ class TFTConfig:
     embed_pca_components: int = 32
     model_dir: Path = field(default_factory=lambda: Path("models"))
     quantiles: list[float] = field(default_factory=lambda: FORECAST_QUANTILES.copy())
+    # Daily comment counts can be a scraper artifact (page-size multiples). The real-data
+    # pipeline turns this off; the default keeps the original behaviour (benchmark scripts).
+    use_comment_count: bool = True
 
 
 class TFTForecaster:
@@ -216,7 +219,9 @@ class TFTForecaster:
             working = working[working["time_idx"] <= cutoff]
             self.cutoff_idx = int(cutoff)   # the last max_pred days are held out of training
 
-        time_varying_unknown = ["avg_toxicity", "toxic_rate", "comment_count"]
+        time_varying_unknown = ["avg_toxicity", "toxic_rate"]
+        if self.config.use_comment_count:
+            time_varying_unknown.append("comment_count")
         time_varying_unknown.extend(self.embedding_cols)
 
         # With missing days the encoder window (lookback calendar days) holds fewer than

@@ -263,6 +263,44 @@ class DataLoader_APOLLO:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIME-SERIES HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+# Accounts that are bots: AutoModerator and names like "x-bot" / "x_bot" / "bot-x".
+BOT_AUTHOR_RE = r"(?i)^automoderator$|[-_]bot$|^bot[-_]"
+
+
+def drop_bots_and_boilerplate(df: pd.DataFrame, min_repeats: int = 5, min_len: int = 100) -> pd.DataFrame:
+    """Remove bot accounts and canned text (the same long body posted min_repeats+ times).
+
+    Short repeated bodies such as "lol" are real people and are kept. Returns a new frame.
+    """
+    author = df["author"].astype(str)
+    body = df["body"].astype(str)
+    is_bot = author.str.contains(BOT_AUTHOR_RE, regex=True)
+    repeats = body.map(body.value_counts())
+    is_boiler = (repeats >= min_repeats) & (body.str.len() >= min_len)
+    drop = is_bot | is_boiler
+    log.info(
+        "Dropped %d bot / boilerplate comments (%d bot-account, %d repeated text); %d remain",
+        int(drop.sum()), int(is_bot.sum()), int((is_boiler & ~is_bot).sum()), int((~drop).sum()),
+    )
+    return df.loc[~drop].reset_index(drop=True)
+
+
+def flag_insufficient_history(report: pd.DataFrame, comments_df: pd.DataFrame, min_days: int = 7) -> pd.DataFrame:
+    """Add observed_days and insufficient_history to a per-subreddit report.
+
+    A subreddit seen on fewer than min_days days has churn / trend values that mean
+    'not enough data', not 'healthy'. The existing values are left untouched.
+    """
+    bare_c = comments_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+    day = _to_utc_datetime(comments_df["created_utc"]).dt.floor("D")
+    days = day.groupby(bare_c).nunique()
+    bare_r = report["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+    out = report.copy()
+    out["observed_days"] = bare_r.map(days).fillna(0).astype(int)
+    out["insufficient_history"] = out["observed_days"] < min_days
+    return out
+
+
 def _to_utc_datetime(ts: pd.Series) -> pd.Series:
     """Parse a created_utc column to UTC datetimes, value by value.
 
@@ -708,6 +746,7 @@ class MacroLayer:
             embed_pca_components=cfg.EMBED_PCA_COMPONENTS,
             model_dir=cfg.MODEL_DIR,
             quantiles=FORECAST_QUANTILES,
+            use_comment_count=False,   # daily counts mostly mirror the scraper's page size
         )
         self.tft = TFTForecaster(tft_config)
 
@@ -736,7 +775,9 @@ class MacroLayer:
                     )
                 extra = len(cached_ids - current_ids)
                 if extra:
-                    log.warning("Embeddings cache has %d rows not in the current comments.", extra)
+                    # e.g. bot comments filtered out of this run: they must not reach the daily series.
+                    log.warning("Embeddings cache has %d rows not in the current comments; ignoring them.", extra)
+                    processed_df = processed_df[processed_df["id"].astype(str).isin(current_ids)].reset_index(drop=True)
             if "created_utc" in processed_df.columns:
                 ts = processed_df["created_utc"]
                 if pd.api.types.is_numeric_dtype(ts):

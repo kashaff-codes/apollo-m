@@ -81,6 +81,17 @@ def test_forecast_backtest_exists_and_is_sane():
     assert bt["mae_tft"].mean() < 0.15, "Backtest MAE is implausibly large"
 
 
+def test_tiny_subreddits_are_flagged_not_treated_as_healthy():
+    """Subreddits seen on fewer than 7 days must carry insufficient_history=True."""
+    m = pd.read_csv(OUTPUTS / "meso_report.csv")
+    for c in ("observed_days", "insufficient_history"):
+        assert c in m.columns, f"{c} missing from meso_report.csv - rerun run_full_from_cache.py"
+    flagged = m[m["insufficient_history"].astype(bool)]
+    assert len(flagged) >= 1, "no subreddit is flagged, but some have only 1-2 days of data"
+    assert (flagged["observed_days"] < 7).all()
+    assert (m.loc[~m["insufficient_history"].astype(bool), "observed_days"] >= 7).all()
+
+
 def test_silhouette_score():
     df = pd.read_csv(OUTPUTS / "clusters_report.csv")
     assert len(df) > 0, "clusters_report.csv is empty"

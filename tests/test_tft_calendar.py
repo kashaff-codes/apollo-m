@@ -48,6 +48,22 @@ def test_eligibility_uses_calendar_span_and_gap_ratio():
     assert got == {"r/full", "r/gappy_ok"}, got
 
 
+def _train_df():
+    return pd.concat([
+        _daily("a", list(range(24))).assign(avg_toxicity=np.linspace(0.05, 0.15, 24)),
+        _daily("b", list(range(24))).assign(avg_toxicity=np.linspace(0.10, 0.05, 24)),
+    ])
+
+
+def test_comment_count_is_an_input_by_default_and_can_be_switched_off():
+    on = TFTForecaster(TFTConfig())
+    ds_on = on.build_dataset(on.prepare_dataframe(_train_df()))
+    assert "comment_count" in ds_on.reals
+    off = TFTForecaster(TFTConfig(use_comment_count=False))
+    ds_off = off.build_dataset(off.prepare_dataframe(_train_df()))
+    assert "comment_count" not in ds_off.reals
+
+
 def test_future_rows_continue_after_last_observed_day():
     f = TFTForecaster(TFTConfig())
     df = f.prepare_dataframe(_daily("a", list(range(0, 20))))
