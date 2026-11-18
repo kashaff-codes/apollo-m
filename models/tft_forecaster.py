@@ -182,10 +182,11 @@ class TFTForecaster:
         valid_groups = group_sizes[group_sizes >= min_required].index.tolist()
 
         if not valid_groups:
-            raise ValueError(
-                f"No subreddit has >= {min_required} daily observations "
-                f"(need {max_encoder} encoder + {max_pred} prediction steps)."
+            import logging
+            logging.getLogger("APOLLO-M").warning(
+                "No subreddit has >= %d daily observations — skipping TFT.", min_required
             )
+            return pd.DataFrame()
 
         working = df[df["subreddit"].isin(valid_groups)].copy()
         if for_training:
@@ -391,6 +392,7 @@ class TFTForecaster:
         subreddit: str,
         start_date: pd.Timestamp,
         output_path: Path,
+        write: bool = True,
     ) -> pd.DataFrame:
         """Write multi-quantile forecast results to CSV."""
         horizon = len(forecast["p50"])
@@ -425,7 +427,8 @@ class TFTForecaster:
             )
 
         result_df = pd.DataFrame(rows)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        result_df.to_csv(output_path, index=False)
-        log.info("Forecast saved (TFT quantiles) → %s", output_path)
+        if write:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            result_df.to_csv(output_path, index=False)
+            log.info("Forecast saved (TFT quantiles) → %s", output_path)
         return result_df

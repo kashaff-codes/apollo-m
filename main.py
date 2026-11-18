@@ -182,6 +182,14 @@ class DataLoader_APOLLO:
                 )
             log.info("Graph: %d nodes, %d edges", graph.number_of_nodes(), graph.number_of_edges())
             return graph
+        log.warning(
+            "SNAP hyperlink graph not found at %s. "
+            "Download it with:\n"
+            "  wget -O data/reddit_hyperlinks.tsv "
+            "https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv\n"
+            "Falling back to synthetic graph — polarization values will be MEANINGLESS.",
+            self.cfg.HYPERLINKS_FILE,
+        )
         return self._synthetic_graph()
 
     def load_cybersecurity_data(self) -> pd.DataFrame:
@@ -264,7 +272,16 @@ def aggregate_daily_with_embeddings(
     for idx, col in enumerate(embed_cols):
         df[col] = embeddings[:, idx]
 
-    df["date"] = pd.to_datetime(df["created_utc"]).dt.floor("D")
+    # Handle both unix timestamps (int/float) and ISO strings
+    if pd.api.types.is_datetime64_any_dtype(df["created_utc"]):
+        # Already real datetimes (e.g. loaded from the embeddings cache).
+        df["date"] = pd.to_datetime(df["created_utc"], utc=True, errors="coerce").dt.floor("D")
+    else:
+        _utc = pd.to_numeric(df["created_utc"], errors="coerce")
+        if _utc.notna().mean() > 0.5:
+            df["date"] = pd.to_datetime(_utc, unit="s", utc=True).dt.floor("D")
+        else:
+            df["date"] = pd.to_datetime(df["created_utc"], utc=True, errors="coerce").dt.floor("D")
     agg_spec: dict = {
         "toxicity_score": "mean",
         "is_toxic": "mean",
@@ -284,8 +301,11 @@ def aggregate_daily_with_embeddings(
     daily = daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
     daily["time_idx"] = daily.groupby("subreddit").cumcount()
     daily["group_id"] = daily["subreddit"]
-    daily["avg_toxicity"] = daily["avg_toxicity"].fillna(0).clip(0, 1)
-    daily["toxic_rate"] = daily["toxic_rate"].fillna(0).clip(0, 1)
+    # Do NOT fillna(0) — missing days must stay NaN so the forecaster knows
+    # there was no data, not a healthy day.  Drop rows with no toxicity signal.
+    daily = daily.dropna(subset=["avg_toxicity", "toxic_rate"])
+    daily["avg_toxicity"] = daily["avg_toxicity"].clip(0, 1)
+    daily["toxic_rate"] = daily["toxic_rate"].clip(0, 1)
     daily["comment_count"] = daily["comment_count"].clip(lower=1)
     return daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
 
@@ -709,9 +729,14 @@ class MacroLayer:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_df = processed_df.copy()
         if "created_utc" in cache_df.columns:
-            cache_df["created_utc"] = (
-                pd.to_datetime(cache_df["created_utc"]).astype("int64") // 10**9
-            )
+            _num = pd.to_numeric(cache_df["created_utc"], errors="coerce")
+            if _num.notna().mean() > 0.5:
+                cache_df["created_utc"] = _num.astype("int64")  # already unix seconds
+            else:
+                cache_df["created_utc"] = (
+                    pd.to_datetime(cache_df["created_utc"], utc=True, errors="coerce")
+                    .astype("int64") // 10**9
+                )
         cache_df.to_csv(cache_path, index=False)
         return self.build_timeseries(comments_df, embeddings)
 
@@ -739,7 +764,8 @@ class MacroLayer:
             normalized = (
                 target_subreddit if target_subreddit.startswith("r/") else f"r/{target_subreddit}"
             )
-            filtered = daily_df[daily_df["subreddit"] == normalized]
+            _b = daily_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+            filtered = daily_df[_b == normalized[2:]]
             if filtered.empty:
                 log.warning("Subreddit %s not found in daily series; using all data.", normalized)
             else:
@@ -757,18 +783,44 @@ class MacroLayer:
         if not forecast:
             raise RuntimeError("TFT prediction failed: no forecast generated for trained subreddits.")
 
-        subreddit = forecast["subreddit"]
-        start_date = pd.to_datetime(
-            daily_df.loc[daily_df["subreddit"] == subreddit, "date"].max()
-        )
-        forecast_df = self.tft.save_forecast_csv(
-            forecast,
-            subreddit=subreddit,
-            start_date=start_date,
-            output_path=self.cfg.OUTPUT_DIR / "forecast_results.csv",
-        )
+        # The forecaster labels subreddits "r/<name>"; daily series use bare names.
+        # Compare on the bare name or every lookup comes back empty (-> NaT dates).
+        _bare = daily_df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
 
-        history = daily_df[daily_df["subreddit"] == subreddit]["avg_toxicity"].values[
+        def _last_date(label: str):
+            return pd.to_datetime(daily_df.loc[_bare == label.removeprefix("r/"), "date"].max())
+
+        # Forecast every subreddit with enough history, not just one.
+        min_days = self.tft.config.lookback_window + self.tft.config.forecast_horizon
+        day_counts = _bare.value_counts()
+        all_forecasts = {forecast["subreddit"]: forecast}
+        for bare in day_counts[day_counts >= min_days].index:
+            label = f"r/{bare}"
+            if label in all_forecasts:
+                continue
+            extra = self.tft.predict_quantiles(daily_df, subreddit=label)
+            if extra and extra.get("subreddit") == label:
+                all_forecasts[label] = extra
+
+        frames = []
+        for label, fc in all_forecasts.items():
+            start = _last_date(label)
+            if pd.isna(start):
+                log.warning("No valid last date for %s; skipping its forecast.", label)
+                continue
+            frames.append(self.tft.save_forecast_csv(
+                fc, subreddit=label, start_date=start,
+                output_path=self.cfg.OUTPUT_DIR / "forecast_results.csv", write=False,
+            ))
+        if not frames:
+            raise RuntimeError("TFT forecast produced no usable subreddit forecasts.")
+        forecast_df = pd.concat(frames, ignore_index=True)
+        out_path = self.cfg.OUTPUT_DIR / "forecast_results.csv"
+        forecast_df.to_csv(out_path, index=False)
+        log.info("Forecast saved for %d subreddits -> %s", len(frames), out_path)
+
+        subreddit = forecast["subreddit"]
+        history = daily_df.loc[_bare == subreddit.removeprefix("r/"), "avg_toxicity"].values[
             -self.cfg.LOOKBACK_WINDOW :
         ]
         self.plot_forecast(history, forecast, subreddit)
