@@ -15,6 +15,7 @@ OUTPUTS = ROOT / "outputs"
 DATA    = ROOT / "data"
 
 
+@pytest.mark.corpus
 def test_comments_csv_exists():
     p = DATA / "apollo_comments.csv"
     assert p.exists(), f"apollo_comments.csv not found at {p}"
@@ -44,6 +45,7 @@ def test_metrics_json_exists():
     assert p.exists(), "metrics.json not found in outputs/"
 
 
+@pytest.mark.corpus
 def test_comments_csv_loads():
     df = pd.read_csv(DATA / "apollo_comments.csv", nrows=50)
     assert len(df) >= 10, "apollo_comments.csv has fewer than 10 rows"

@@ -15,14 +15,19 @@ import pandas as pd
 import pytest
 
 
+from apollo_datasets import get as _dataset
+
 DATA    = ROOT / "data"
-OUTPUTS = ROOT / "outputs"
+# The Arctic Shift rebuild's outputs. They used to be read from top-level
+# outputs/, which is the benchmark; see apollo_datasets.py for why they moved.
+OUTPUTS = _dataset("real_arctic_2026_10").path
 # Rebuilt daily series. data/apollo_daily.csv is the protected benchmark and is not tested here.
 DAILY   = OUTPUTS / "timeseries_with_embeddings.csv"
 
 
 # ─── apollo_comments.csv ────────────────────────────────────────────────────
 
+@pytest.mark.corpus
 def test_comments_has_many_rows():
     df = pd.read_csv(DATA / "apollo_comments.csv")
     assert len(df) >= 1000, (
@@ -30,6 +35,7 @@ def test_comments_has_many_rows():
     )
 
 
+@pytest.mark.corpus
 def test_rebuilt_corpus_matches_pipeline_input():
     """apollo_comments.csv (what the pipeline reads) must be the rebuilt corpus plus scores,
     i.e. contain exactly the comment ids in apollo_comments_real.csv (build_corpus.py output)."""
@@ -43,12 +49,14 @@ def test_rebuilt_corpus_matches_pipeline_input():
     )
 
 
+@pytest.mark.corpus
 def test_comments_multiple_subreddits():
     df = pd.read_csv(DATA / "apollo_comments.csv")
     n = df["subreddit"].nunique()
     assert n >= 10, f"Only {n} unique subreddits — expected at least 10"
 
 
+@pytest.mark.corpus
 def test_comments_has_real_toxicity_scores():
     """Scores must be numeric floats in [0,1], not all NaN and not all 0."""
     df = pd.read_csv(DATA / "apollo_comments.csv")
@@ -65,6 +73,7 @@ def test_comments_has_real_toxicity_scores():
     )
 
 
+@pytest.mark.corpus
 def test_comments_toxicity_rate_realistic():
     """Realistic Reddit toxic rate: 1%–50%."""
     df = pd.read_csv(DATA / "apollo_comments.csv")
@@ -75,6 +84,7 @@ def test_comments_toxicity_rate_realistic():
     )
 
 
+@pytest.mark.corpus
 def test_comments_varied_bodies():
     """Bodies must NOT all be the same placeholder string."""
     df = pd.read_csv(DATA / "apollo_comments.csv", nrows=200)

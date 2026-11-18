@@ -1,0 +1,13 @@
+# SHA-256 of every committed input the paper's reproduction scripts read
+# (bootstrap_ci.py, make_paper_figures.py, validate_simulation.py), taken at
+# cd481b4 - the commit the paper was built from. Line endings are normalised to
+# LF before hashing. tests/test_paper_inputs.py fails if any file differs.
+# Change a paper input deliberately, then regenerate this file in the same commit.
+8b4f56e7b1d5ff3dfa66edff718777d5ef54cec764b856d990b7ca0c1c71d57c  data/apollo_daily.csv
+a1489e25be04ea88544375c15e3cd9b8e44e4a39f3e8371a8cd6feac3fb68378  data/ground_truth.json
+70a8d3c852c34572031b7940114039100be20e8c2742c66db39aa99cbec9295e  outputs/meso_report.csv
+1ac6be565d6d75080bd46855414ca6e0b7098ddea6c4db370b0fa89f52a2439f  outputs/forecast_results.csv
+7ba3dd2da5d0104094db61aacabe1b3892e9566a2171d9364148abee48de6602  outputs/validation.json
+8928978767b3b8e88b97c077e0c6621fd45178e249884d0d9541e62169cb3bd4  outputs/real/meso_report.csv
+fdb4c566523506b6190834695c3102b1cb84c6e3dab10f5770545ba1ce503446  outputs/real/forecast_results.csv
+00359b36b6e2ca98693ff2b04cb04a3ab1c784ad3ac58c41ca6b32fced8e0873  outputs/real/data_provenance.json

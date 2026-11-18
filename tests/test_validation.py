@@ -12,7 +12,13 @@ sys.path.insert(0, str(ROOT))
 import pandas as pd
 import pytest
 
+from apollo_datasets import get as _dataset
+
+# metrics.json describes the toxicity classifier and is shared by every corpus.
 OUTPUTS = ROOT / "outputs"
+# Forecast, backtest, meso and cluster checks are about the Arctic Shift rebuild,
+# which now lives in its own directory instead of over the benchmark.
+REBUILD = _dataset("real_arctic_2026_10").path
 
 
 def _load_metrics():
@@ -40,14 +46,14 @@ def test_toxicity_f1():
 
 
 def test_tft_forecast_exists():
-    p = OUTPUTS / "forecast_results.csv"
+    p = REBUILD / "forecast_results.csv"
     assert p.exists(), "forecast_results.csv not found — run MACRO layer"
     df = pd.read_csv(p)
     assert len(df) > 0, "forecast_results.csv is empty"
 
 
 def test_forecast_has_multiple_subreddits():
-    p = OUTPUTS / "forecast_results.csv"
+    p = REBUILD / "forecast_results.csv"
     assert p.exists(), "forecast_results.csv not found — run MACRO layer"
     df = pd.read_csv(p)
     col = next((c for c in df.columns if "subreddit" in c.lower() or "group" in c.lower()), None)
@@ -58,8 +64,8 @@ def test_forecast_has_multiple_subreddits():
 
 def test_forecast_dates_are_after_the_history():
     """A forecast must start AFTER the last observed day of that subreddit, not re-predict it."""
-    fc = pd.read_csv(OUTPUTS / "forecast_results.csv")
-    ts = pd.read_csv(OUTPUTS / "timeseries_with_embeddings.csv", usecols=["subreddit", "date"])
+    fc = pd.read_csv(REBUILD / "forecast_results.csv")
+    ts = pd.read_csv(REBUILD / "timeseries_with_embeddings.csv", usecols=["subreddit", "date"])
     ts["date"] = pd.to_datetime(ts["date"], utc=True).dt.tz_localize(None).dt.normalize()
     fc["date"] = pd.to_datetime(fc["date"])
     last = ts.groupby("subreddit")["date"].max()
@@ -72,7 +78,7 @@ def test_forecast_dates_are_after_the_history():
 
 
 def test_forecast_backtest_exists_and_is_sane():
-    p = OUTPUTS / "forecast_backtest.csv"
+    p = REBUILD / "forecast_backtest.csv"
     assert p.exists(), "forecast_backtest.csv not found - run the MACRO layer"
     bt = pd.read_csv(p)
     assert len(bt) >= 10, f"Backtest covers only {len(bt)} subreddits"
@@ -83,7 +89,7 @@ def test_forecast_backtest_exists_and_is_sane():
 
 def test_tiny_subreddits_are_flagged_not_treated_as_healthy():
     """Subreddits seen on fewer than 7 days must carry insufficient_history=True."""
-    m = pd.read_csv(OUTPUTS / "meso_report.csv")
+    m = pd.read_csv(REBUILD / "meso_report.csv")
     for c in ("observed_days", "insufficient_history"):
         assert c in m.columns, f"{c} missing from meso_report.csv - rerun run_full_from_cache.py"
     flagged = m[m["insufficient_history"].astype(bool)]
@@ -93,7 +99,7 @@ def test_tiny_subreddits_are_flagged_not_treated_as_healthy():
 
 
 def test_silhouette_score():
-    df = pd.read_csv(OUTPUTS / "clusters_report.csv")
+    df = pd.read_csv(REBUILD / "clusters_report.csv")
     assert len(df) > 0, "clusters_report.csv is empty"
     # clusters_report.csv has no silhouette column, so compute it from the PCA coordinates.
     for c in ("cluster", "pca_x", "pca_y"):
