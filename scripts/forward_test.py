@@ -166,7 +166,13 @@ def _jobs() -> list[tuple[str, str, str, int]]:
     for key, cfg in CORPORA.items():
         subs = sorted(set(fc.loc[fc["corpus"] == key, "subreddit"]))
         jobs += [(key, s, d, h) for s in subs for d in cfg["days"] for h in WINDOWS]
-    return jobs
+    # Breadth first: one window for every community-day before a second for any.
+    # Arctic Shift throttles under load, so a long fetch may not finish; ordered
+    # this way, whatever has arrived covers every community-day evenly, and each
+    # later window only tightens the estimate. One window of 100 comments already
+    # clears the 50-comment rule.
+    priority = {12: 0, 0: 1, 18: 2, 6: 3}
+    return sorted(jobs, key=lambda j: (priority[j[3]], j[0] != "rc_2026_08", j[2], j[1]))
 
 
 def _fetch_one(job) -> str:

@@ -1,0 +1,132 @@
+{
+  "corpora": [
+    {
+      "key": "benchmark",
+      "label": "Benchmark · declared simulation",
+      "kind": "benchmark",
+      "window": "120 days",
+      "communities": 60,
+      "comments": 261337,
+      "days": 120,
+      "forecast": "hindcast",
+      "credit": "APOLLO-M team",
+      "summary": "Declared simulation with ground truth recorded in data/ground_truth.json and read by no pipeline stage — the only corpus where recall can be measured, because the answer is known in advance."
+    },
+    {
+      "key": "real_api_2026_07",
+      "label": "Real · Arctic Shift API · Jul–Aug 2026",
+      "kind": "real",
+      "window": "2026-07-02 → 2026-08-11",
+      "communities": 24,
+      "comments": 116853,
+      "days": 41,
+      "forecast": "hindcast",
+      "credit": "Kashaf Fatima",
+      "summary": "116,853 genuine comments collected through the Arctic Shift API and scored by unitary/toxic-bert. The corpus behind the public web view."
+    },
+    {
+      "key": "real_torrent_2026_08",
+      "label": "Real · RC_2026-08 full monthly dump",
+      "kind": "real",
+      "window": "2026-08-01 → 2026-08-31",
+      "communities": 39,
+      "comments": 1087806,
+      "days": 31,
+      "forecast": "held_out",
+      "credit": "Rizwan Saleem",
+      "summary": "1,087,806 comments filtered from the complete August 2026 Reddit dump, every stage gated and independently recomputed. Forecasts are held-out August days shown against what actually happened."
+    },
+    {
+      "key": "real_arctic_2026_10",
+      "label": "Real · Arctic Shift rebuild · Oct–Nov 2026",
+      "kind": "real",
+      "window": "2026-10-23 → 2026-11-15",
+      "communities": 38,
+      "comments": 246239,
+      "days": 24,
+      "forecast": "future",
+      "credit": "Aaqib Mehmood",
+      "summary": "257,129 comments in one contiguous window with the real SNAP hyperlink graph. The only corpus with forecasts of days after the data, backed by a held-out backtest against naive baselines."
+    }
+  ],
+  "agreement": [
+    {
+      "a": "real_api_2026_07",
+      "b": "real_torrent_2026_08",
+      "rho": 0.916,
+      "n": 14
+    },
+    {
+      "a": "real_api_2026_07",
+      "b": "real_arctic_2026_10",
+      "rho": 0.864,
+      "n": 14
+    },
+    {
+      "a": "real_torrent_2026_08",
+      "b": "real_arctic_2026_10",
+      "rho": 0.892,
+      "n": 38
+    }
+  ],
+  "backtest": {
+    "benchmark": {
+      "communities": 60,
+      "days": 300,
+      "mae_tft": 0.05437,
+      "mae_last_value": 0.07665,
+      "mae_recent_mean": 0.05731,
+      "coverage": 0.84,
+      "beats_last": 38,
+      "beats_mean": 41
+    },
+    "real_api_2026_07": {
+      "communities": 24,
+      "days": 119,
+      "mae_tft": 0.02605,
+      "mae_last_value": 0.03486,
+      "mae_recent_mean": 0.0239,
+      "coverage": 0.76471,
+      "beats_last": 19,
+      "beats_mean": 8
+    },
+    "real_torrent_2026_08": {
+      "communities": 38,
+      "days": 190,
+      "mae_tft": 0.02008,
+      "mae_last_value": 0.01633,
+      "mae_recent_mean": 0.01136,
+      "coverage": 0.83684,
+      "beats_last": 18,
+      "beats_mean": 12
+    },
+    "real_arctic_2026_10": {
+      "communities": 32,
+      "days": 136,
+      "mae_tft": 0.02133,
+      "mae_last_value": 0.02386,
+      "mae_recent_mean": 0.01882,
+      "coverage": 0.72794,
+      "beats_last": 19,
+      "beats_mean": 12
+    }
+  },
+  "label_agreement": {
+    "n": 291,
+    "precision": 0.212,
+    "recall": 0.677,
+    "f1": 0.323,
+    "precision_ci95": [
+      0.132,
+      0.295
+    ],
+    "false_positives": 78,
+    "false_positives_with_profanity": 52
+  },
+  "benchmark": {
+    "chi_roc_auc": 0.5748,
+    "toxicity_only_roc_auc": 0.6489,
+    "tft_slope_roc_auc": 0.7319
+  },
+  "forward_test": null
+}
