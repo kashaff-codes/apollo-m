@@ -187,7 +187,7 @@ def csv_query(path: str, columns: list[tuple[str, str]], ref="A") -> dict:
 def by_community(field: str) -> list:
     # One series per community, named "r/<community>" rather than "<field> <community>".
     return [{"id": "partitionByValues", "options": {"fields": ["subreddit"], "keepFields": False}},
-            {"id": "renameByRegex", "options": {"regex": "^\S+ (.+)$", "renamePattern": "r/$1"}}]
+            {"id": "renameByRegex", "options": {"regex": r"^\S+ (.+)$", "renamePattern": "r/$1"}}]
 
 
 def corpus() -> dict:
