@@ -29,7 +29,7 @@ import data as D  # noqa: E402
 import theme as T  # noqa: E402
 from apollo_bands import ACTION, COLOR, ICON, ORDER  # noqa: E402
 
-st.set_page_config(page_title="APOLLO-M", page_icon="🪐", layout="wide")
+st.set_page_config(page_title="APOLLO-M", page_icon="●", layout="wide")
 
 
 def _secrets_to_env() -> None:
@@ -177,15 +177,21 @@ st.session_state.setdefault("user", None)
 if not st.session_state.user:
     st.markdown("""<style>
     .stApp .block-container{padding-top:5vh}
-    div[data-testid="stForm"]{background:rgba(20,18,45,.6);border:1px solid rgba(139,92,246,.4);
-      border-radius:18px;padding:22px 22px 6px;box-shadow:0 0 60px rgba(139,92,246,.22);}
+    div[data-testid="stForm"]{background:#1A1430;border:1px solid rgba(201,191,227,.14);
+      border-radius:14px;padding:22px 22px 6px;}
     </style>""", unsafe_allow_html=True)
     _, mid, _ = st.columns([1, 1.25, 1])
     with mid:
-        st.markdown('<div class="apollo-title" style="text-align:center;font-size:2.8rem">🪐 APOLLO-M</div>',
-                    unsafe_allow_html=True)
-        st.markdown("<p class='apollo-sub' style='text-align:center'>Forecasting instability in online "
-                    "communities · four Reddit corpora · 1.5M+ comments</p>", unsafe_allow_html=True)
+        _real = [load("meso", d.key) for d in AD.real()]
+        st.markdown(T.status_strip([
+            ("real comments read", f"{int(sum(m['total_comments'].sum() for m in _real)):,}"),
+            ("communities", str(len(set().union(*[set(m["subreddit"]) for m in _real])))),
+            ("corpora", str(len(AD.available())))]), unsafe_allow_html=True)
+        st.markdown('<div class="hook">Moderation reacts to the worst day.<br>'
+                    'APOLLO-M watches the five before it.</div>', unsafe_allow_html=True)
+        st.markdown("<p class='apollo-sub'>Toxicity, community health and five-day forecasts for Reddit "
+                    "communities, measured on real comments and checked against what actually happened "
+                    "next.</p>", unsafe_allow_html=True)
         if GOOGLE:
             if st.button("Continue with Google", use_container_width=True,
                          type=("secondary" if GOOGLE_PROBLEM else "primary"), disabled=bool(GOOGLE_PROBLEM)):
@@ -221,7 +227,8 @@ KEYS = [d.key for d in AVAILABLE]
 LABELS = {d.key: d.label for d in AD.DATASETS.values()}
 
 with st.sidebar:
-    st.markdown('<div class="apollo-title" style="font-size:1.6rem">🪐 APOLLO-M</div>', unsafe_allow_html=True)
+    st.markdown('<div class="apollo-title" style="font-size:1.55rem"><span class="mark">●</span> APOLLO-M</div>',
+                unsafe_allow_html=True)
     st.caption(f"Signed in: **{st.session_state.user}**")
     key = st.selectbox("Corpus", KEYS, index=KEYS.index(AD.DEFAULT) if AD.DEFAULT in KEYS else 0,
                        format_func=lambda k: LABELS[k],
@@ -270,6 +277,15 @@ def provenance():
 
 
 def header(title: str, sub: str = ""):
+    """Page title in Fraunces, under Occuris's mono status strip for the selected corpus."""
+    import time as _t
+    if not meso.empty:
+        f = load("facts", key)
+        attention = int(meso["band"].isin(["CRITICAL", "HIGH"]).sum())
+        st.markdown(T.status_strip([
+            ("UTC", _t.strftime("%H:%M", _t.gmtime())), ("comments read", f"{f['comments']:,}"),
+            ("communities", str(f["communities"])), ("need attention", str(attention)),
+            ("window", DS.window)]), unsafe_allow_html=True)
     st.markdown(f'<div class="apollo-title">{title}</div>', unsafe_allow_html=True)
     if sub:
         st.markdown(f'<div class="apollo-sub">{sub}</div>', unsafe_allow_html=True)
@@ -286,7 +302,7 @@ def fc_p50_last(sub: str):
 # ═════════════════════════════════════════════════════════════════════════════
 
 if page == "Overview":
-    header("Community health", "Where every community stands right now, and why")
+    header("Community health", "One number per community, and the four measurements behind it.")
     provenance()
     if meso.empty:
         st.info("No outputs for this corpus.")
@@ -325,7 +341,7 @@ if page == "Overview":
                "this console, the API, the exporter and the public web view (apollo_bands.py).")
 
 elif page == "Dynamics":
-    header("Dynamics", "How each community moved through the period, day by day")
+    header("Dynamics", "Where each community was heading, day by day. Press play.")
     provenance()
     if daily.empty:
         st.info("No daily series for this corpus.")
@@ -340,7 +356,7 @@ elif page == "Dynamics":
                            values="avg_toxicity").round(3).reset_index(), key="dyn_heat")
 
 elif page == "Communities":
-    header("Community drill-down")
+    header("One community", "The score, what it is made of, and what happened every day.")
     provenance()
     if meso.empty:
         st.stop()
@@ -382,7 +398,7 @@ elif page == "Communities":
             st.caption("Ollama isn't running — start it (`ollama serve`) or switch the provider to **claude**.")
 
 elif page == "Forecast":
-    header("Five-day forecast", "Temporal Fusion Transformer, p10–p90 band, checked against naive baselines")
+    header("Five-day forecast", "What the model expects next — and how often it has been right.")
     provenance()
     if FC.empty:
         st.info("No forecast for this corpus.")
@@ -432,7 +448,7 @@ elif page == "Forecast":
     show(C.small_multiples(daily, FC, subs[:6]), key="fc_sm")
 
 elif page == "🎯 Actions":
-    header("Moderation actions", "One standard response per community, so every moderator acts the same way")
+    header("Actions", "Every community gets the same rule. No moderator has to guess.")
     provenance()
     if meso.empty:
         st.stop()
@@ -449,7 +465,7 @@ elif page == "🎯 Actions":
                "prediction. The forecast column is the proactive signal.")
 
 elif page == "Clusters":
-    header("Clusters", "K-Means on each community's health profile")
+    header("Clusters", "Communities grouped by how they are unhealthy, not by topic.")
     provenance()
     cl = load("clusters", key)
     if cl.empty:
@@ -466,7 +482,7 @@ elif page == "Clusters":
                    "every point is noise — a parameter issue the team has documented, not a finding.")
 
 elif page == "Across corpora":
-    header("Across corpora", "Do the same communities look the same when measured again?")
+    header("Across corpora", "Measure the same communities again, months later. Do they rank the same?")
     t = load_corpora()
     real = [d.key for d in AD.real()]
     pairs = [(real[i], real[j]) for i in range(len(real)) for j in range(i + 1, len(real))]
@@ -485,7 +501,7 @@ elif page == "Across corpora":
          .round(3).reset_index(), key="ac_dots")
 
 elif page == "Evidence":
-    header("Evidence", "What was measured, how, and what it showed — including what did not work")
+    header("Evidence", "What we measured, how, and what it showed. Including what did not work.")
     m = D.metrics()
     st.markdown("### Supervised toxicity classifier (TF-IDF + logistic regression)")
     st.caption("Trained and tested on labelled Jigsaw/Davidson data. A separate model from toxic-bert, which "
@@ -630,9 +646,9 @@ def live_panel():
             # as its score unless the viewer asks to see it.
             body = (safe(str(r["body"])[:140]) if (reveal or not toxic)
                     else "<i style='color:#898781'>text hidden — flagged toxic</i>")
-            st.markdown(f"<span style='color:{col}'>{mark}</span> <b>{safe(sub)}</b> "
-                        f"<span style='color:#898781'>[{r['ts']}]</span> tox={float(r['toxicity']):.2f} — "
-                        f"{body}", unsafe_allow_html=True)
+            st.markdown(f"<p class='feed'><span style='color:{col}'>{mark}</span> <b>{safe(sub)}</b> "
+                        f"<span class='t'>{r['ts']} · tox {float(r['toxicity']):.2f}</span><br>"
+                        f"{body}</p>", unsafe_allow_html=True)
     except Exception:
         pass
     st.caption(f"updated {s.get('updated', '')} · " + (LIVE_NOTE if hosted else "real corpus, real scores, live"))
@@ -652,13 +668,13 @@ def _live_note() -> str:
 LIVE_NOTE = _live_note()
 
 if page == "🔴 Live":
-    header("Real-time processing", "Real Reddit comments streamed through the pipeline")
+    header("Live", "Real comments, scored as they arrive.")
     st.toggle("Show text of comments flagged toxic", key="live_reveal",
               help="Off by default: real comments include slurs. Scores are always shown.")
     live_panel()
 
 elif page == "🌐 Real Reddit":
-    header("Real Reddit ingestion", "A live call to Arctic Shift, made when you press the button")
+    header("Real Reddit", "One live request to Arctic Shift, made when you press the button.")
     fc = st.columns([2, 1, 1])
     sub_live = fc[0].text_input("Subreddit", value="politics", label_visibility="collapsed",
                                 placeholder="subreddit, e.g. politics")
@@ -685,7 +701,7 @@ elif page == "🌐 Real Reddit":
                                    f"{age:.0f} minutes ago.")
                         for c in rows[:12]:
                             ts = _dt.datetime.fromtimestamp(c["created_utc"], _dt.timezone.utc).strftime("%H:%M UTC")
-                            st.markdown(f"<span style='color:#22d3ee'>●</span> "
+                            st.markdown(f"<span style='color:{T.LINK}'>●</span> "
                                         f"<b>r/{safe(c.get('subreddit', sub_live))}</b> "
                                         f"<span style='color:#898781'>u/{safe(c.get('author', '?'))} · {ts}</span> — "
                                         f"{safe(str(c.get('body', ''))[:170])}", unsafe_allow_html=True)
@@ -696,7 +712,7 @@ elif page == "🌐 Real Reddit":
                "what that pipeline produced.")
 
 elif page == "Monitoring":
-    header("Monitoring", "Prometheus scrapes the API; Grafana charts it")
+    header("Monitoring", "Both APIs, scraped every thirty seconds. Public, read-only.")
     if meso.empty:
         st.stop()
     st.markdown(T.kpi_row([

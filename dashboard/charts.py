@@ -265,10 +265,10 @@ def history(daily_sub: pd.DataFrame, future_sub: pd.DataFrame | None = None,
         f = f.sort_values("date")
         fig.add_trace(go.Scatter(x=list(f["date"]) + list(f["date"])[::-1],
                                  y=list(f["p90"]) + list(f["p10"])[::-1], fill="toself", mode="lines",
-                                 fillcolor=T.rgba(T.VIOLET, .22), line=dict(width=0), name="p10–p90 band",
+                                 fillcolor=T.rgba(T.FORECAST, .22), line=dict(width=0), name="p10–p90 band",
                                  hoverinfo="skip"), row=1, col=1)
         fig.add_trace(go.Scatter(x=f["date"], y=f["p50"], mode="lines+markers", name=name,
-                                 line=dict(color=T.VIOLET, width=2, dash="dot"), marker=dict(size=7),
+                                 line=dict(color=T.FORECAST, width=2, dash="dot"), marker=dict(size=7),
                                  customdata=np.stack([f["p10"], f["p90"]], axis=-1),
                                  hovertemplate="%{x|%b %d}: p50 %{y:.3f} (p10 %{customdata[0]:.3f} – "
                                                "p90 %{customdata[1]:.3f})<extra>" + name + "</extra>"),
@@ -354,9 +354,9 @@ def small_multiples(daily: pd.DataFrame, fc: pd.DataFrame, subs: list[str], cols
                                  showlegend=False, hovertemplate="%{x|%b %d}: %{y:.3f}<extra>" + s + "</extra>"), r, c)
         if not f.empty:
             fig.add_trace(go.Scatter(x=list(f["date"]) + list(f["date"])[::-1], y=list(f["p90"]) + list(f["p10"])[::-1],
-                                     fill="toself", mode="lines", fillcolor=T.rgba(T.VIOLET, .25), line=dict(width=0),
+                                     fill="toself", mode="lines", fillcolor=T.rgba(T.FORECAST, .25), line=dict(width=0),
                                      showlegend=False, hoverinfo="skip"), r, c)
-            fig.add_trace(go.Scatter(x=f["date"], y=f["p50"], mode="lines", line=dict(color=T.VIOLET, width=2, dash="dot"),
+            fig.add_trace(go.Scatter(x=f["date"], y=f["p50"], mode="lines", line=dict(color=T.FORECAST, width=2, dash="dot"),
                                      showlegend=False, hovertemplate="%{x|%b %d}: p50 %{y:.3f}<extra>" + s + "</extra>"), r, c)
     fig.update_annotations(font=dict(size=12, color=T.INK_2))
     fig.update_xaxes(showticklabels=False)
