@@ -1,0 +1,41 @@
+name: Python
+
+# The pipeline, API, console and monitoring tests. Until November nothing ran
+# them in CI: the two pull requests opened against this repository were merged
+# on reading alone, and the suite could not even be collected in a clean
+# checkout. Every push and pull request now runs it.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['web/**', '.github/workflows/web.yml']
+  pull_request:
+    paths-ignore: ['web/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+
+      - name: Install
+        # torch and torchvision from the CPU index first: from PyPI, torchvision
+        # pins a CUDA build of torch and the install grows by ~2 GB for GPU
+        # kernels the tests never use.
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-train.txt -r requirements.txt pytest httpx zstandard
+
+      - name: Grafana dashboards match their generator
+        run: |
+          python monitoring/hosted/build_dashboards.py
+          git diff --exit-code monitoring/hosted/dashboards
+
+      - name: Tests
+        # Without the git-ignored corpus the `corpus` tests skip and say why;
+        # `slow` tests (which download toxic-bert) run with APOLLO_SLOW=1.
+        run: python -m pytest tests/ -q -rs

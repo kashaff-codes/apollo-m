@@ -1029,7 +1029,7 @@ def chapter_three(d):
            ["Prometheus metrics endpoint",
             "https://apollo-api-tllm.onrender.com/metrics"],
            ["Source repository",
-            "https://github.com/kashaffatimajaffrey-design/apollo-m"],
+            "https://github.com/kashaff-codes/apollo-m"],
            ["CEREBRO (companion system)", "https://cerebro-sandy-beta.vercel.app"]],
           widths=[2.2, 4.3], font=9)
 

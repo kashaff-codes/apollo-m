@@ -497,7 +497,7 @@ rule.shadow.inherit = False
 txt(s, 0.6, 3.95, 8.8, 1.9,
     ["Dashboard    apollo-m.streamlit.app",
      "API                 apollo-api-tllm.onrender.com/docs",
-     "Code               github.com/kashaffatimajaffrey-design/apollo-m",
+     "Code               github.com/kashaff-codes/apollo-m",
      "CEREBRO       cerebro-sandy-beta.vercel.app"],
     size=15, align=PP_ALIGN.CENTER, color=BLUE, bold=True, space=9)
 

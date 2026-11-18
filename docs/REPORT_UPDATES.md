@@ -188,7 +188,7 @@ Update Table 3.4 to the current endpoints:
 | REST API | https://apollo-api-tllm.onrender.com |
 | Interactive API documentation | https://apollo-api-tllm.onrender.com/docs |
 | Prometheus metrics endpoint | https://apollo-api-tllm.onrender.com/metrics |
-| Source repository | https://github.com/kashaffatimajaffrey-design/apollo-m |
+| Source repository | https://github.com/kashaff-codes/apollo-m |
 | CEREBRO application | https://cerebro-sandy-beta.vercel.app |
 | CEREBRO API | https://cerebro-api-nmah.onrender.com |
 

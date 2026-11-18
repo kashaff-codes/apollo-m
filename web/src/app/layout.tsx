@@ -138,7 +138,7 @@ export default function RootLayout({
             </a>
             <a
               className="hover:text-white/60"
-              href="https://github.com/kashaffatimajaffrey-design/apollo-m"
+              href="https://github.com/kashaff-codes/apollo-m"
               target="_blank"
               rel="noreferrer"
             >

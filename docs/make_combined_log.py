@@ -418,8 +418,8 @@ report and this log.</li>
 <div class='note'><b>Live systems.</b>
 CEREBRO — cerebro-sandy-beta.vercel.app &nbsp;·&nbsp; API cerebro-api-nmah.onrender.com<br/>
 APOLLO-M — apollo-m.streamlit.app &nbsp;·&nbsp; API apollo-api-tllm.onrender.com<br/>
-Code — github.com/kashaffatimajaffrey-design/CEREBRO &nbsp;·&nbsp;
-github.com/kashaffatimajaffrey-design/apollo-m</div>
+Code — github.com/kashaff-codes/CEREBRO &nbsp;·&nbsp;
+github.com/kashaff-codes/apollo-m</div>
 </body></html>"""
 
 
