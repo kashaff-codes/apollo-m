@@ -1,0 +1,16 @@
+{
+  "dataset": "benchmark",
+  "communities_forecast": 60,
+  "epochs": 6,
+  "seed": 42,
+  "lookback": 14,
+  "horizon": 5,
+  "backtest_communities": 60,
+  "backtest_days": 300,
+  "mae_tft": 0.05437,
+  "mae_last_value": 0.07665,
+  "mae_recent_mean": 0.05731,
+  "coverage_p10_p90": 0.84,
+  "tft_beats_last_value_in": 38,
+  "tft_beats_recent_mean_in": 41
+}

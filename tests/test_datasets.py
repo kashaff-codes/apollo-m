@@ -144,3 +144,34 @@ def test_forecast_semantics_match_the_files(ds):
     else:  # hindcast: values are for observed days, but the file's dates were stamped after them
         assert ds.forecast == "hindcast"
         assert "actual" not in f.columns
+
+
+# ── genuine forecasts and backtests ─────────────────────────────────────────
+
+def test_every_real_and_benchmark_dataset_has_a_future_or_held_out_view(ds):
+    assert ds.future_file is not None or ds.forecast == "held_out", (
+        f"{ds.key} only has a hindcast; run gen_forecasts.py --dataset {ds.key}")
+
+
+def test_future_forecasts_start_after_the_data(ds):
+    if ds.future_file is None:
+        pytest.skip(f"{ds.key} has no future forecast by design")
+    f = pd.read_csv(ds.future_file)
+    assert (f["p10"] <= f["p50"] + 1e-9).all() and (f["p50"] <= f["p90"] + 1e-9).all()
+    assert (f.groupby("subreddit")["day"].nunique() == 5).all()
+    daily = pd.read_csv(ds.daily, usecols=["subreddit", "date"])
+    daily["bare"] = daily["subreddit"].astype(str).str.replace(r"^r/", "", regex=True)
+    last = pd.to_datetime(daily["date"], utc=True).dt.tz_localize(None).dt.normalize().groupby(daily["bare"]).max()
+    f["bare"] = f["subreddit"].str.replace(r"^r/", "", regex=True)
+    first = pd.to_datetime(f["date"]).groupby(f["bare"]).min()
+    gap = (first - last.reindex(first.index)).dt.days
+    assert (gap == 1).all(), f"{ds.key}: forecasts must begin the day after each series ends: {gap[gap != 1].to_dict()}"
+
+
+def test_backtests_are_complete(ds):
+    if ds.backtest_file is None:
+        pytest.skip(f"{ds.key} has no backtest file")
+    bt = pd.read_csv(ds.backtest_file)
+    for c in ("subreddit", "n_days", "mae_tft", "mae_last_value", "mae_recent_mean", "inside_p10_p90"):
+        assert c in bt.columns and bt[c].notna().all(), f"{ds.key}: backtest lacks {c}"
+    assert bt["inside_p10_p90"].between(0, 1).all() and (bt["n_days"] >= 1).all()

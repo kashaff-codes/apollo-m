@@ -60,6 +60,21 @@ class Dataset:
     def available(self) -> bool:
         return (self.path / "meso_report.csv").exists()
 
+    @property
+    def future_file(self) -> Path | None:
+        """Forecasts of days after the data, if this dataset has any."""
+        own = self.path / "forecast_future.csv"          # gen_forecasts.py, November on
+        if own.exists():
+            return own
+        if self.forecast == "future":                    # the rebuild wrote them as results
+            return self.path / "forecast_results.csv"
+        return None
+
+    @property
+    def backtest_file(self) -> Path | None:
+        p = self.path / "forecast_backtest.csv"
+        return p if p.exists() else None
+
 
 DATASETS: dict[str, Dataset] = {
     d.key: d
