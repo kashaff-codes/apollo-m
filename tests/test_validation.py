@@ -48,24 +48,49 @@ def test_tft_forecast_exists():
 
 def test_forecast_has_multiple_subreddits():
     p = OUTPUTS / "forecast_results.csv"
-    if not p.exists():
-        pytest.skip("forecast_results.csv not found")
+    assert p.exists(), "forecast_results.csv not found — run MACRO layer"
     df = pd.read_csv(p)
     col = next((c for c in df.columns if "subreddit" in c.lower() or "group" in c.lower()), None)
-    if col is None:
-        pytest.skip("No subreddit/group column in forecast_results.csv")
+    assert col is not None, "No subreddit/group column in forecast_results.csv"
     n = df[col].nunique()
     assert n >= 5, f"Forecast covers only {n} subreddits — expected at least 5"
+
+
+def test_forecast_dates_are_after_the_history():
+    """A forecast must start AFTER the last observed day of that subreddit, not re-predict it."""
+    fc = pd.read_csv(OUTPUTS / "forecast_results.csv")
+    ts = pd.read_csv(OUTPUTS / "timeseries_with_embeddings.csv", usecols=["subreddit", "date"])
+    ts["date"] = pd.to_datetime(ts["date"], utc=True).dt.tz_localize(None).dt.normalize()
+    fc["date"] = pd.to_datetime(fc["date"])
+    last = ts.groupby("subreddit")["date"].max()
+    fc["bare"] = fc["subreddit"].str.replace(r"^r/", "", regex=True)
+    first_fc = fc.groupby("bare")["date"].min()
+    joined = pd.concat([first_fc.rename("first_forecast"), last.rename("last_obs")], axis=1).dropna()
+    assert len(joined) >= 5, "forecast and history share fewer than 5 subreddits"
+    bad = joined[joined["first_forecast"] <= joined["last_obs"]]
+    assert bad.empty, f"forecasts overlap observed days for: {list(bad.index)[:5]}"
+
+
+def test_forecast_backtest_exists_and_is_sane():
+    p = OUTPUTS / "forecast_backtest.csv"
+    assert p.exists(), "forecast_backtest.csv not found - run the MACRO layer"
+    bt = pd.read_csv(p)
+    assert len(bt) >= 10, f"Backtest covers only {len(bt)} subreddits"
+    for c in ("mae_tft", "mae_last_value", "mae_recent_mean", "inside_p10_p90"):
+        assert c in bt.columns and bt[c].notna().all(), f"{c} missing or has NaN in forecast_backtest.csv"
+    assert bt["mae_tft"].mean() < 0.15, "Backtest MAE is implausibly large"
 
 
 def test_silhouette_score():
     df = pd.read_csv(OUTPUTS / "clusters_report.csv")
     assert len(df) > 0, "clusters_report.csv is empty"
-    # At minimum it must exist and be non-trivial
-    sil_col = next((c for c in df.columns if "silhouette" in c.lower()), None)
-    if sil_col:
-        mean_sil = df[sil_col].mean()
-        assert mean_sil > -0.5, f"Mean silhouette {mean_sil:.3f} is very poor"
+    # clusters_report.csv has no silhouette column, so compute it from the PCA coordinates.
+    for c in ("cluster", "pca_x", "pca_y"):
+        assert c in df.columns, f"{c} missing from clusters_report.csv"
+    from sklearn.metrics import silhouette_score
+    assert df["cluster"].nunique() >= 2, "Need at least 2 clusters to score"
+    mean_sil = silhouette_score(df[["pca_x", "pca_y"]], df["cluster"])
+    assert mean_sil > -0.5, f"Mean silhouette {mean_sil:.3f} is very poor"
 
 
 def test_benchmark_files_untouched():

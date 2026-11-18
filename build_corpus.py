@@ -33,13 +33,13 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
     # Step 1: clean
     drop_counts = Counter()
 
-    # normalize subreddit
-    df["subreddit"] = df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True).str.strip()
-
-    # drop missing fields
+    # drop missing fields FIRST: astype(str) would turn a null subreddit into the string "nan"
     before = len(df)
     df = df.dropna(subset=["id", "subreddit", "author", "body", "score", "created_utc"])
     drop_counts["missing_fields"] = before - len(df)
+
+    # normalize subreddit
+    df["subreddit"] = df["subreddit"].astype(str).str.replace(r"^r/", "", regex=True).str.strip()
 
     # drop deleted/removed
     before = len(df)
@@ -58,7 +58,9 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
 
     # Step 2: parse dates
     df["created_utc"] = pd.to_numeric(df["created_utc"], errors="coerce")
+    before = len(df)
     df = df.dropna(subset=["created_utc"])
+    drop_counts["bad_timestamp"] = before - len(df)   # counted, so the reconciliation adds up
     df["date"] = pd.to_datetime(df["created_utc"], unit="s", utc=True).dt.date
 
     # find contiguous window
@@ -82,12 +84,11 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
     print(f"  Longest contiguous window: {best_start} to {best_end} ({best_len} days)")
 
     if best_len < min_days:
-        # use last 30 days of data instead
-        last_date = all_dates[-1]
-        window_start = last_date - timedelta(days=29)
-        print(f"  Window too short, using last 30 days: {window_start} to {last_date}")
-        best_start = window_start
-        best_end = last_date
+        # Never fall back to a window with gaps: that breaks the contiguity guarantee.
+        raise SystemExit(
+            f"No contiguous window of >= {min_days} days found (longest is {best_len}). "
+            "Refusing to build a corpus with date gaps."
+        )
 
     # filter to window
     df = df[(df["date"] >= best_start) & (df["date"] <= best_end)]
@@ -124,6 +125,8 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
             records.append(rec)
 
     out_df = pd.DataFrame(records)
+    # Date per row for the coverage check only (kept out of out_df so the CSV schema is unchanged).
+    out_dates = pd.to_datetime(out_df["created_utc"], unit="s", utc=True).dt.strftime("%Y-%m-%d")
     out_df["group_id"] = out_df["subreddit"]
     out_df["toxicity_score"] = float("nan")
     out_df["is_toxic"] = 0
@@ -134,14 +137,14 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
     subs_with_gaps = []
     subs_complete = []
     for sub in out_df["subreddit"].unique():
-        sub_dates = set(out_df[out_df["subreddit"] == sub]["date"].astype(str).unique())
+        sub_dates = set(out_dates[out_df["subreddit"] == sub].unique())
         if window_dates - sub_dates:
             subs_with_gaps.append(sub)
         else:
             subs_complete.append(sub)
 
     print(f"\n  Subreddits with complete coverage ({len(subs_complete)}): OK for forecasting")
-    print(f"  Subreddits with gaps ({len(subs_with_gaps)}): excluded from TFT forecasting")
+    print(f"  Subreddits with gaps ({len(subs_with_gaps)}): kept; the forecaster keeps real calendar gaps and needs >=60% of days observed")
     if subs_with_gaps:
         print(f"    Gaps in: {', '.join(subs_with_gaps[:10])}")
 
@@ -188,7 +191,8 @@ def main(cap: int = 1000, seed: int = 42, min_days: int = 24):
     print(f"  After clean:  {raw_count - sum(drop_counts.values()):,}")
     print(f"  In window:    {len(df):,}")
     print(f"  After cap:    {len(out_df):,}")
-    print(f"\nDone. Use apollo_comments_real.csv as input (not apollo_comments.csv).")
+    print("\nDone. apollo_comments_real.csv has NO toxicity scores yet (toxicity_score is NaN).")
+    print("Score it (MICRO), save the scored result as data/apollo_comments.csv, then run run_full_from_cache.py.")
     print(f"Subreddits ready for forecasting: {len(subs_complete)}")
 
 if __name__ == "__main__":

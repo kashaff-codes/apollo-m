@@ -263,6 +263,26 @@ class DataLoader_APOLLO:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIME-SERIES HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+def _to_utc_datetime(ts: pd.Series) -> pd.Series:
+    """Parse a created_utc column to UTC datetimes, value by value.
+
+    Handles real datetimes, unix seconds (int/float/numeric strings) and ISO strings,
+    including a column that mixes them. Unparseable values become NaT.
+    """
+    if pd.api.types.is_datetime64_any_dtype(ts):
+        return pd.to_datetime(ts, utc=True, errors="coerce")
+    num = pd.to_numeric(ts, errors="coerce")
+    out = pd.to_datetime(num, unit="s", utc=True, errors="coerce")
+    text_mask = num.isna() & ts.notna()
+    if text_mask.any():
+        try:  # format="mixed": each string is parsed on its own (pandas >= 2)
+            parsed = pd.to_datetime(ts[text_mask], utc=True, errors="coerce", format="mixed")
+        except (TypeError, ValueError):
+            parsed = pd.to_datetime(ts[text_mask], utc=True, errors="coerce")
+        out.loc[text_mask] = parsed
+    return out
+
+
 def aggregate_daily_with_embeddings(
     comments_df: pd.DataFrame, embeddings: np.ndarray
 ) -> pd.DataFrame:
@@ -272,16 +292,8 @@ def aggregate_daily_with_embeddings(
     for idx, col in enumerate(embed_cols):
         df[col] = embeddings[:, idx]
 
-    # Handle both unix timestamps (int/float) and ISO strings
-    if pd.api.types.is_datetime64_any_dtype(df["created_utc"]):
-        # Already real datetimes (e.g. loaded from the embeddings cache).
-        df["date"] = pd.to_datetime(df["created_utc"], utc=True, errors="coerce").dt.floor("D")
-    else:
-        _utc = pd.to_numeric(df["created_utc"], errors="coerce")
-        if _utc.notna().mean() > 0.5:
-            df["date"] = pd.to_datetime(_utc, unit="s", utc=True).dt.floor("D")
-        else:
-            df["date"] = pd.to_datetime(df["created_utc"], utc=True, errors="coerce").dt.floor("D")
+    # created_utc may be datetimes, unix seconds or ISO strings (even mixed): parse per value.
+    df["date"] = _to_utc_datetime(df["created_utc"]).dt.floor("D")
     agg_spec: dict = {
         "toxicity_score": "mean",
         "is_toxic": "mean",
@@ -299,7 +311,8 @@ def aggregate_daily_with_embeddings(
     )
 
     daily = daily.sort_values(["subreddit", "date"]).reset_index(drop=True)
-    daily["time_idx"] = daily.groupby("subreddit").cumcount()
+    # Calendar day number (a missing day stays a gap); the TFT recomputes it from dates anyway.
+    daily["time_idx"] = (daily["date"] - daily["date"].min()).dt.days
     daily["group_id"] = daily["subreddit"]
     # Do NOT fillna(0) — missing days must stay NaN so the forecaster knows
     # there was no data, not a healthy day.  Drop rows with no toxicity signal.
@@ -711,6 +724,19 @@ class MacroLayer:
         if cache_path.exists():
             log.info("[INFO] Loading extracted embeddings from cache...")
             processed_df = pd.read_csv(cache_path)
+            if "id" in processed_df.columns and "id" in comments_df.columns:
+                cached_ids = set(processed_df["id"].astype(str))
+                current_ids = set(comments_df["id"].astype(str))
+                missing = len(current_ids - cached_ids)
+                if missing:
+                    raise RuntimeError(
+                        f"Embeddings cache {cache_path} is stale: {missing:,} current comments have no "
+                        "cached embedding. Refusing to forecast from a different corpus. Move the cache "
+                        "aside and rebuild it (slow), or point EMBEDDINGS_CACHE at the matching file."
+                    )
+                extra = len(cached_ids - current_ids)
+                if extra:
+                    log.warning("Embeddings cache has %d rows not in the current comments.", extra)
             if "created_utc" in processed_df.columns:
                 ts = processed_df["created_utc"]
                 if pd.api.types.is_numeric_dtype(ts):
@@ -729,14 +755,12 @@ class MacroLayer:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_df = processed_df.copy()
         if "created_utc" in cache_df.columns:
-            _num = pd.to_numeric(cache_df["created_utc"], errors="coerce")
-            if _num.notna().mean() > 0.5:
-                cache_df["created_utc"] = _num.astype("int64")  # already unix seconds
-            else:
-                cache_df["created_utc"] = (
-                    pd.to_datetime(cache_df["created_utc"], utc=True, errors="coerce")
-                    .astype("int64") // 10**9
-                )
+            # Always store unix SECONDS (nullable int, so a bad value cannot crash the write).
+            # pd.to_numeric on a datetime column would give nanoseconds, so parse via datetimes.
+            _dt = _to_utc_datetime(cache_df["created_utc"])
+            cache_df["created_utc"] = (
+                (_dt - pd.Timestamp("1970-01-01", tz="UTC")) // pd.Timedelta(seconds=1)
+            ).astype("Int64")
         cache_df.to_csv(cache_path, index=False)
         return self.build_timeseries(comments_df, embeddings)
 
@@ -776,10 +800,23 @@ class MacroLayer:
         self.tft.train(daily_df)
 
         eval_metrics = self.tft.evaluate(daily_df)
+        bt = self.tft.last_backtest
+        if bt is not None and not bt.empty:
+            bt.to_csv(self.cfg.OUTPUT_DIR / "forecast_backtest.csv", index=False)
+            log.info(
+                "Backtest on held-out last %d days (%d subreddits): TFT MAE=%.4f | last-value MAE=%.4f | "
+                "recent-mean MAE=%.4f | TFT beats last-value in %d/%d | p10-p90 coverage=%.0f%%",
+                self.tft.config.forecast_horizon, len(bt), eval_metrics["mae"],
+                eval_metrics["baseline_last_value_mae"], eval_metrics["baseline_recent_mean_mae"],
+                int((bt["mae_tft"] < bt["mae_last_value"]).sum()), len(bt),
+                100 * bt["inside_p10_p90"].mean(),
+            )
         preferred = target_subreddit
         if preferred and not preferred.startswith("r/"):
             preferred = f"r/{preferred}"
-        forecast = self.tft.predict_quantiles(daily_df, subreddit=preferred)
+        # future=True: forecast the days AFTER the last observed day (the default would
+        # re-predict the last 5 observed days and label them as future dates).
+        forecast = self.tft.predict_quantiles(daily_df, subreddit=preferred, future=True)
         if not forecast:
             raise RuntimeError("TFT prediction failed: no forecast generated for trained subreddits.")
 
@@ -791,14 +828,11 @@ class MacroLayer:
             return pd.to_datetime(daily_df.loc[_bare == label.removeprefix("r/"), "date"].max())
 
         # Forecast every subreddit with enough history, not just one.
-        min_days = self.tft.config.lookback_window + self.tft.config.forecast_horizon
-        day_counts = _bare.value_counts()
         all_forecasts = {forecast["subreddit"]: forecast}
-        for bare in day_counts[day_counts >= min_days].index:
-            label = f"r/{bare}"
+        for label in self.tft.eligible_subreddits(daily_df):
             if label in all_forecasts:
                 continue
-            extra = self.tft.predict_quantiles(daily_df, subreddit=label)
+            extra = self.tft.predict_quantiles(daily_df, subreddit=label, future=True)
             if extra and extra.get("subreddit") == label:
                 all_forecasts[label] = extra
 

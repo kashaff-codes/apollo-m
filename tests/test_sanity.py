@@ -30,6 +30,19 @@ def test_comments_has_many_rows():
     )
 
 
+def test_rebuilt_corpus_matches_pipeline_input():
+    """apollo_comments.csv (what the pipeline reads) must be the rebuilt corpus plus scores,
+    i.e. contain exactly the comment ids in apollo_comments_real.csv (build_corpus.py output)."""
+    real_path = DATA / "apollo_comments_real.csv"
+    assert real_path.exists(), "apollo_comments_real.csv missing - run build_corpus.py"
+    real = pd.read_csv(real_path, usecols=["id", "created_utc"])
+    used = pd.read_csv(DATA / "apollo_comments.csv", usecols=["id"])
+    assert len(real) >= 1000, f"Rebuilt corpus has only {len(real)} rows"
+    assert set(real["id"]) == set(used["id"]), (
+        "apollo_comments.csv and apollo_comments_real.csv contain different comments"
+    )
+
+
 def test_comments_multiple_subreddits():
     df = pd.read_csv(DATA / "apollo_comments.csv")
     n = df["subreddit"].nunique()
@@ -39,8 +52,7 @@ def test_comments_multiple_subreddits():
 def test_comments_has_real_toxicity_scores():
     """Scores must be numeric floats in [0,1], not all NaN and not all 0."""
     df = pd.read_csv(DATA / "apollo_comments.csv")
-    if "toxicity_score" not in df.columns:
-        pytest.skip("toxicity_score column not present — micro not yet run")
+    assert "toxicity_score" in df.columns, "toxicity_score column missing — run the micro layer"
     scored = df["toxicity_score"].dropna()
     assert len(scored) >= len(df) * 0.9, (
         f"Only {len(scored)}/{len(df)} rows have a toxicity_score — run micro layer"
@@ -56,8 +68,7 @@ def test_comments_has_real_toxicity_scores():
 def test_comments_toxicity_rate_realistic():
     """Realistic Reddit toxic rate: 1%–50%."""
     df = pd.read_csv(DATA / "apollo_comments.csv")
-    if "is_toxic" not in df.columns or df["is_toxic"].isna().all():
-        pytest.skip("is_toxic not set — run micro layer first")
+    assert "is_toxic" in df.columns and df["is_toxic"].notna().any(), "is_toxic missing or empty — run the micro layer"
     rate = df["is_toxic"].mean()
     assert 0.01 < rate < 0.50, (
         f"Toxic rate {rate:.2%} outside realistic range 1%–50%"
@@ -130,8 +141,7 @@ def test_meso_polarization_varies():
     With a real SNAP graph, values must differ across communities.
     """
     df = pd.read_csv(OUTPUTS / "meso_report.csv")
-    if "polarization" not in df.columns:
-        pytest.skip("polarization column not in meso_report.csv")
+    assert "polarization" in df.columns, "polarization column missing from meso_report.csv"
     std = df["polarization"].std()
     assert std > 1e-6, (
         f"polarization std={std:.8f} — all subreddits have identical polarization "
@@ -143,8 +153,7 @@ def test_meso_chi_varies():
     """CHI scores must not all be the same value."""
     df = pd.read_csv(OUTPUTS / "meso_report.csv")
     col = "chi" if "chi" in df.columns else ("community_health_index" if "community_health_index" in df.columns else None)
-    if col is None:
-        pytest.skip("No CHI column found")
+    assert col is not None, "No CHI column in meso_report.csv"
     std = df[col].std()
     assert std > 0.1, f"CHI std={std:.4f} — scores are suspiciously flat"
 
