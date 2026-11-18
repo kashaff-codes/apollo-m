@@ -31,7 +31,12 @@ ACTION = {
     "LOW": "NO_ACTION",
 }
 
-COLOR = {"CRITICAL": "#f43f5e", "HIGH": "#f59e0b", "MEDIUM": "#eab308", "LOW": "#10b981"}
+# Status colours. Red and green are ΔE 4.1 apart for deuteranopes, so a band is
+# never shown by colour alone: every chart also uses SYMBOL, every label ICON+name.
+COLOR = {"CRITICAL": "#d03b3b", "HIGH": "#ec835a", "MEDIUM": "#fab219", "LOW": "#0ca30c"}
+SYMBOL = {"CRITICAL": "x", "HIGH": "triangle-up", "MEDIUM": "diamond", "LOW": "circle"}
+ICON = {"CRITICAL": "✕", "HIGH": "▲", "MEDIUM": "◆", "LOW": "●"}
+FLOOR = {"CRITICAL": 0, "HIGH": 65, "MEDIUM": 75, "LOW": 85}
 
 
 def alert_band(chi: float) -> str:

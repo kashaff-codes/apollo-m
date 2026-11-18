@@ -1,0 +1,20 @@
+{
+  "source": "https://arctic-shift.photon-reddit.com/api/comments/search",
+  "fetched_at_utc": "2026-11-18T20:58:21+00:00",
+  "communities_requested": 39,
+  "communities_failed": [
+    "MensRights: HTTPError",
+    "Superstonk: HTTPError"
+  ],
+  "comments": 2116,
+  "communities_with_comments": 37,
+  "posted_between": [
+    "2026-11-16T17:36:45+00:00",
+    "2026-11-18T20:58:09+00:00"
+  ],
+  "model": "unitary/toxic-bert",
+  "threshold": 0.6,
+  "toxic_rate": 0.0912,
+  "authors_stored": false,
+  "body_max_chars": 280
+}
