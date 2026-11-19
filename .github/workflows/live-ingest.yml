@@ -14,7 +14,10 @@ name: Live ingest
 
 on:
   schedule:
-    - cron: '17 */6 * * *'
+    # GitHub registers a schedule when the workflow file changes on main. The
+    # first one never fired (no scheduled run in the 15 hours after it was
+    # added); changing the cron line re-registers it.
+    - cron: '7 */6 * * *'
   workflow_dispatch:
     inputs:
       hours:
