@@ -17,6 +17,30 @@ Kashaf Fatima · Rizwan Saleem · Aaqib Mehmood. Supervisor: Mr. Saghir Ahmed.
 | Companion system | [CEREBRO](https://github.com/kashaff-codes/CEREBRO) — threat and misinformation intelligence |
 
 Free-tier services sleep when idle: the first request after a quiet spell can take up to a minute.
+Open Grafana a few minutes before showing it: Prometheus starts without history after a wake.
+
+**For a reviewer:** [`docs/PRODUCT_BRIEF.md`](docs/PRODUCT_BRIEF.md) answers what it is
+for, who would buy it, how reliable it is (with evidence), how data gets in, and
+how a customer would deploy it.
+
+---
+
+## Live — data that keeps arriving
+
+Nobody runs a script to keep APOLLO-M current.
+
+| Path | What happens | How fresh |
+|---|---|---|
+| **Scheduled ingest** — [`scripts/live_ingest.py`](scripts/live_ingest.py), run by [`.github/workflows/live-ingest.yml`](.github/workflows/live-ingest.yml) | Every six hours: the newest comments for every community in [`live/communities.txt`](live/communities.txt) from Arctic Shift, bots filtered, scored with toxic-bert, 7-day Community Health Index and a next-day forecast recomputed, aggregates committed to `outputs/live/` | Arctic Shift runs minutes behind Reddit; first run: 7,247 comments from 52 communities, newest 18 seconds old |
+| **Topic watch** — console page, [`apollo_live.py`](apollo_live.py) | On demand: every post or comment mentioning a phrase in a set of communities over the last hour to week, with where and when, straight from Arctic Shift | Minutes |
+| **Monthly archive** (Academic Torrents `RC_YYYY-MM`) | Every comment in a month, for exact volumes, backfill and calibration; it is how we checked the live sample measures the same thing (ρ 0.916) | Weeks; published monthly |
+
+Adding a community is one line in `live/communities.txt` (53 tracked). Comment
+text and usernames are never committed: the ingest publishes per-community
+aggregates, and keeps authors only as salted hashes in the Actions cache, for
+churn. Keyword search across *all* of Reddit would need Reddit's own API; Arctic
+Shift's search names the communities to look in, which is why Topic watch
+starts from preset, editable lists.
 
 ---
 
@@ -62,7 +86,8 @@ changing. That is the project's central finding, published as a negative result.
 |---|---|
 | Which communities are toxic is stable across months and collection methods | Spearman ρ of community toxicity: **0.916** (API vs August dump, 14 shared), **0.892** (August dump vs Oct–Nov, 38), 0.864 (API vs Oct–Nov, 14) |
 | The TFT beats repeating the last value, but not the 14-day mean | held-out MAE — API corpus 0.026 vs 0.035 vs **0.024**; RC_2026-08 0.020 vs 0.016 vs **0.011**; rebuild 0.021 vs 0.024 vs **0.019** (TFT / last value / 14-day mean). On the benchmark, where trends are planted, the TFT wins (0.054 vs 0.077 vs 0.057). |
-| Its 80% band is roughly calibrated | 73–84% of held-out actuals fall inside p10–p90, by corpus |
+| Its 80% band is roughly calibrated on held-out days | 73–84% of held-out actuals fall inside p10–p90, by corpus |
+| **Forward test: on days that had not happened yet, the result holds** | trained on August only, predicted 1–5 September, then scored 91,101 comments actually posted on those days: MAE 14-day mean **0.0166**, TFT 0.0178 (worse by 0.0012, 95% CI 0.0003–0.0021), last value 0.0181; the 80% band covered only 67%. Same pattern on 16–17 November. [`outputs/forward_test/summary.json`](outputs/forward_test/summary.json) |
 | toxic-bert largely detects swearing | against 291 independently labelled RC_2026-08 comments, precision **0.21** at the 0.6 threshold (95% CI 0.13–0.30); 52 of its 78 false positives contain profanity |
 | Four scorer variants did not improve on it | Rizwan's pre-registered test: thresholds fixed on a dev set, tested once, none met the bar |
 
@@ -122,9 +147,11 @@ and a community × day heatmap), *Communities* (CHI gauge, a waterfall of the fo
 weighted penalties, component radar, history with forecast band), *Forecast*
 (forecasts drawn as what they are — future or held-out — with a backtest against
 naive baselines on every corpus), *Actions*, *Clusters* (3D), *Across corpora*,
-*Evidence* (every result above, negative ones included), *Live* (real comments,
-toxic text hidden by default), *Real Reddit* (a live Arctic Shift call) and
-*Monitoring*.
+*Evidence* (every result above, negative ones included), *Live* (the scheduled
+ingest's latest measurements: when, how fresh, health of every tracked
+community), *Topic watch* (ask Arctic Shift about a phrase now: where and when it
+is being discussed, with the posts) and *Monitoring*. Charts draw themselves in
+on load (and do not, under reduced-motion settings).
 
 Alert bands are one rule shared by every surface ([`apollo_bands.py`](apollo_bands.py)):
 ✕ CRITICAL < 65 ≤ ▲ HIGH < 75 ≤ ◆ MEDIUM < 85 ≤ ● LOW. A test evaluates the API,
@@ -164,7 +191,7 @@ only aggregates are committed.
 ## Tests
 
 ```bash
-pytest tests/                        # 213 tests, ~1 min
+pytest tests/                        # 229 tests, ~1 min
 APOLLO_SLOW=1 pytest tests/test_micro.py      # + the real toxic-bert
 APOLLO_REQUIRE_CORPUS=1 pytest tests/         # on a machine with the scored corpus
 ```
@@ -176,7 +203,8 @@ APOLLO_REQUIRE_CORPUS=1 pytest tests/         # on a machine with the scored cor
 | Validation | `test_validation.py`, `test_datasets.py` | metric thresholds; one contract for all four corpora, incl. that each forecast file means what the registry says |
 | Regression | `test_chi.py`, `test_paper_inputs.py` | the CHI `*100` overflow; alert-band parity across six implementations; SHA-256 of every input the paper is reproduced from |
 | Isolation | `test_isolation_ingest.py` | the dump filter on a real `.zst` and the corpus builder on edge-case rows |
-| Integration | `test_api.py`, `test_monitoring.py` | the API with its database gone; every metric a Grafana panel queries is one the API exports |
+| Integration | `test_api.py`, `test_monitoring.py` | the API with its database gone; every metric a Grafana panel queries is one the API exports; every live-status field a panel reads exists |
+| Live path | `test_live.py` | one CHI definition; health window and minimum-comment rule; churn as the pipeline defines it; forecast band contains its median; Topic watch reports throttled communities instead of dropping them |
 
 Tests that need the git-ignored corpus are marked `corpus` and skip with the
 reason when it is absent. CI runs the suite on every push and pull request.
@@ -186,7 +214,9 @@ reason when it is absent. CI runs the suite on every push and pull request.
 | Path | What |
 |---|---|
 | `main.py` | Pipeline layers: micro, meso, unsupervised, macro, alerts |
-| `apollo_datasets.py` · `apollo_bands.py` | The corpus registry · the alert-band rule |
+| `apollo_datasets.py` · `apollo_bands.py` · `apollo_chi.py` | The corpus registry · the alert-band rule · the CHI formula, defined once |
+| `apollo_live.py` · `scripts/live_ingest.py` · `live/` | Topic watch · the scheduled ingest · the tracked-community list |
+| `scripts/forward_test.py` | Forecasts of days that had not happened, scored against reality |
 | `models/tft_forecaster.py` | Temporal Fusion Transformer: calendar-day index, future forecasts, backtest |
 | `outputs/` · `outputs/real*/` | Benchmark outputs (paper inputs, pinned) · one directory per real corpus |
 | `dashboard/` | Streamlit console: `app.py`, `charts.py`, `data.py`, `theme.py` |
@@ -200,7 +230,9 @@ reason when it is absent. CI runs the suite on every push and pull request.
 
 `render.yaml` declares the API and the monitoring service; Streamlit Cloud serves
 the console from `requirements.txt`; Vercel serves `web/`. No secrets are
-committed: `JWT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `CORS_ORIGINS` and
-`GF_SECURITY_ADMIN_PASSWORD` are set in each host's dashboard. See
+committed: `JWT_SECRET`, `ANTHROPIC_API_KEY` (plus `ANTHROPIC_WORKSPACE_ID` for a
+user-scoped `sk-ant-usr-` key), `DATABASE_URL`, `CORS_ORIGINS` and
+`GF_SECURITY_ADMIN_PASSWORD` are set in each host's dashboard. The live ingest
+runs in GitHub Actions and needs no secret. See
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and
 [`docs/RESTORE_DATABASE.md`](docs/RESTORE_DATABASE.md).
