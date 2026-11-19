@@ -28,7 +28,7 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def complete(self, prompt: str, system: str | None = None,
-                 max_tokens: int = 512) -> str:
+                 max_tokens: int = 2000) -> str:
         ...
 
     def available(self) -> bool:
@@ -51,7 +51,7 @@ class OllamaProvider(LLMProvider):
         self.host = (host or os.getenv("OLLAMA_HOST", "http://localhost:11434")).rstrip("/")
 
     def complete(self, prompt: str, system: str | None = None,
-                 max_tokens: int = 512) -> str:
+                 max_tokens: int = 2000) -> str:
         import requests
 
         payload = {
@@ -77,17 +77,19 @@ class ClaudeProvider(LLMProvider):
     """Anthropic Claude via the official SDK — the panel-demo backend.
 
     Imported lazily so the module loads even before `anthropic` is installed or a
-    key is set (key arrives later). Default model: claude-opus-5.
+    key is set (key arrives later). Default model: claude-opus-5-5.
+    A user-scoped key (sk-ant-usr-) must name its workspace: set
+    ANTHROPIC_WORKSPACE_ID and it is sent as the anthropic-workspace-id header.
     """
 
     name = "claude"
 
     def __init__(self, model: str | None = None, api_key: str | None = None) -> None:
-        self.model = model or os.getenv("CLAUDE_MODEL", "claude-opus-5")
+        self.model = model or os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
 
     def complete(self, prompt: str, system: str | None = None,
-                 max_tokens: int = 512) -> str:
+                 max_tokens: int = 2000) -> str:
         try:
             import anthropic
         except ImportError as exc:  # pragma: no cover - env dependent
@@ -98,11 +100,19 @@ class ClaudeProvider(LLMProvider):
             raise LLMUnavailable(
                 "ANTHROPIC_API_KEY is not set — add it to switch to the Claude provider."
             )
-        client = anthropic.Anthropic(api_key=self.api_key)
+        workspace = os.getenv("ANTHROPIC_WORKSPACE_ID", "").strip()
+        client = anthropic.Anthropic(
+            api_key=self.api_key,
+            default_headers={"anthropic-workspace-id": workspace} if workspace else None,
+        )
         try:
+            # Opus 5.5 always thinks, and thinking tokens count toward
+            # max_tokens; a short explanation needs little of it, so effort is
+            # low and the budget leaves room for the answer itself.
             msg = client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
+                extra_body={"output_config": {"effort": "low"}},
                 system=system or "You explain threat-intelligence results plainly.",
                 messages=[{"role": "user", "content": prompt}],
             )

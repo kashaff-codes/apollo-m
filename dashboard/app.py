@@ -44,7 +44,7 @@ def _secrets_to_env() -> None:
     setdefault, not assignment: a real environment variable always wins.
     """
     try:
-        for key in ("ANTHROPIC_API_KEY", "CLAUDE_MODEL", "LLM_PROVIDER", "OLLAMA_HOST",
+        for key in ("ANTHROPIC_API_KEY", "ANTHROPIC_WORKSPACE_ID", "CLAUDE_MODEL", "LLM_PROVIDER", "OLLAMA_HOST",
                     "OLLAMA_MODEL", "APOLLO_API_URL", "GRAFANA_URL", "PROMETHEUS_URL"):
             if key in st.secrets:
                 _os.environ.setdefault(key, str(st.secrets[key]))
