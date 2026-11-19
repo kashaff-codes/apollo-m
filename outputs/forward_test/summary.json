@@ -1,0 +1,102 @@
+{
+  "min_comments_per_day": 50,
+  "windows_utc": [
+    0,
+    6,
+    12,
+    18
+  ],
+  "per_window": 100,
+  "arctic_2026_10": {
+    "community_days": 62,
+    "communities": 31,
+    "days": [
+      "2026-11-16",
+      "2026-11-17"
+    ],
+    "mae": {
+      "last_value": 0.01882,
+      "mean14": 0.0152,
+      "tft_committed": 0.0186,
+      "tft_mean": 0.0186
+    },
+    "tft_minus_mean14": {
+      "mean": 0.0034,
+      "ci95": [
+        -0.00016,
+        0.00679
+      ]
+    },
+    "tft_beats_mean14_communities": 13,
+    "tft_beats_last_value_communities": 15,
+    "coverage_p10_p90": 0.6452,
+    "mae_by_horizon": {
+      "1": {
+        "last_value": 0.0168,
+        "mean14": 0.01461,
+        "tft_committed": 0.01641
+      },
+      "2": {
+        "last_value": 0.02084,
+        "mean14": 0.01579,
+        "tft_committed": 0.0208
+      }
+    }
+  },
+  "rc_2026_08": {
+    "community_days": 193,
+    "communities": 39,
+    "days": [
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-05"
+    ],
+    "mae": {
+      "last_value": 0.01807,
+      "mean14": 0.01658,
+      "tft_mean": 0.0178,
+      "tft_seed42": 0.01902,
+      "tft_seed43": 0.01839,
+      "tft_seed44": 0.02081
+    },
+    "tft_minus_mean14": {
+      "mean": 0.00122,
+      "ci95": [
+        0.00026,
+        0.00214
+      ]
+    },
+    "tft_beats_mean14_communities": 18,
+    "tft_beats_last_value_communities": 22,
+    "coverage_p10_p90": 0.6736,
+    "mae_by_horizon": {
+      "1": {
+        "last_value": 0.01682,
+        "mean14": 0.01461,
+        "tft_mean": 0.01541
+      },
+      "2": {
+        "last_value": 0.01619,
+        "mean14": 0.0165,
+        "tft_mean": 0.01645
+      },
+      "3": {
+        "last_value": 0.0179,
+        "mean14": 0.01683,
+        "tft_mean": 0.01818
+      },
+      "4": {
+        "last_value": 0.01795,
+        "mean14": 0.01599,
+        "tft_mean": 0.01812
+      },
+      "5": {
+        "last_value": 0.02159,
+        "mean14": 0.01903,
+        "tft_mean": 0.02093
+      }
+    }
+  }
+}
