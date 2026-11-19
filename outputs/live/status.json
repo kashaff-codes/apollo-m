@@ -1,19 +1,19 @@
 {
-  "run_at": "2026-11-19T00:06:50+00:00",
+  "run_at": "2026-11-19T00:29:12+00:00",
   "window_hours": 6.0,
   "communities_tracked": 53,
   "communities_with_data": 52,
-  "comments_this_run": 7247,
-  "comments_total": 7247,
-  "runs_total": 1,
+  "comments_this_run": 7186,
+  "comments_total": 14433,
+  "runs_total": 2,
   "first_run": "2026-11-19T00:06:50+00:00",
-  "newest_comment_utc": 1795046791,
-  "newest_comment_age_min": 0.3,
+  "newest_comment_utc": 1795048122,
+  "newest_comment_age_min": 0.5,
   "slices_failed": 1,
   "failures": [
     {
-      "subreddit": "wallstreetbets",
-      "after": 1795025210,
+      "subreddit": "unpopularopinion",
+      "after": 1795037352,
       "error": "http 422"
     }
   ],
