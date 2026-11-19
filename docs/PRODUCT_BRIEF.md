@@ -44,7 +44,7 @@ four measurements moved) tells the moderator what to do.
 | **The health index orders communities sensibly** | On the declared benchmark (planted ground truth), the index separates deteriorating from stable communities (ROC AUC in `outputs/web_evidence.json`) | Moderate: measured on simulation |
 | **The toxicity score means "hostile or profane language"**, not harassment | Against 291 hand-labelled comments, toxic-bert's precision for the toxic class is 0.21; 52 of 78 false positives contain profanity | Weak as a harassment detector, and stated as such |
 | **Point forecasts** of next-week toxicity | On held-out days, the TFT does not beat a 14-day recent mean on any of the three real corpora; 80% intervals cover 73–84% | Weak; the live forecast therefore uses the recent mean |
-| **Forward test** (trained on August, predicting September days that had not happened) | `scripts/forward_test.py`, results in `outputs/forward_test/` | Pending at time of writing |
+| **Forward test** (trained on August, predicting September 1–5 before they were scored; 91,101 fresh comments) | 14-day mean MAE 0.0166, TFT 0.0178 (worse by 0.0012, 95% CI 0.0003–0.0021), repeating yesterday 0.0181; 80% intervals covered 67%. `outputs/forward_test/summary.json` | Confirms the backtests on unseen days: the recent mean is the better forecast, and the TFT's intervals are too narrow |
 
 **What to tell a panel in one sentence:** *the ranking and the trend are
 reliable and reproducible across independent data collections; the absolute
