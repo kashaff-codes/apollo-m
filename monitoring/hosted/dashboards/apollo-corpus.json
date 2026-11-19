@@ -33,7 +33,7 @@
   ],
   "panels": [
     {
-      "id": 23,
+      "id": 28,
       "type": "timeseries",
       "title": "Daily mean toxicity, every community",
       "description": "One line per community. Gaps are days with no data — never zero-filled. Click a name in the legend to isolate it.",
@@ -138,7 +138,7 @@
       ]
     },
     {
-      "id": 24,
+      "id": 29,
       "type": "timeseries",
       "title": "Daily share of comments over the toxicity threshold (0.6)",
       "description": "",
@@ -242,7 +242,7 @@
       ]
     },
     {
-      "id": 25,
+      "id": 30,
       "type": "bargauge",
       "title": "Community Health Index, lowest first",
       "description": "✕ CRITICAL < 65 ≤ ▲ HIGH < 75 ≤ ◆ MEDIUM < 85 ≤ ● LOW",
@@ -360,7 +360,7 @@
       }
     },
     {
-      "id": 26,
+      "id": 31,
       "type": "table",
       "title": "Every community — the four inputs to CHI",
       "description": "CHI = 100 − (35·toxicity + 30·polarisation + 20·churn + 15·echo).",

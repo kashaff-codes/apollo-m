@@ -89,7 +89,8 @@ def test_corpus_options_point_at_files_that_exist():
     d = _dashboards()["apollo-corpus.json"]
     corpus_var = next(v for v in d["templating"]["list"] if v["name"] == "corpus")
     options = [part.split(":")[-1].strip() for part in corpus_var["query"].split(",")]
-    files = {re.search(r"\$\{corpus\}/(\S+)$", t["url"]).group(1) for _, _, t in _targets() if "url" in t}
+    files = {re.search(r"\$\{corpus\}/(\S+)$", t["url"]).group(1)
+             for _, _, t in _targets() if "${corpus}" in t.get("url", "")}
     for opt in options:
         for f in files:
             assert (ROOT / "outputs" / opt / f).exists(), f"outputs/{opt}/{f} missing — the panel would be empty"
@@ -119,3 +120,15 @@ def test_grafana_is_public_but_read_only():
     assert "GF_SECURITY_ADMIN_PASSWORD=" not in df, "no admin password baked into the image"
     assert "/dev/urandom" in entry, "an unset admin password must become a random one, not Grafana's default"
     assert "--web.enable-admin-api" not in entry and "--web.enable-lifecycle" not in entry
+
+
+def test_live_panels_read_the_file_the_live_ingest_writes():
+    """The Operations dashboard's live row reads outputs/live/status.json from GitHub."""
+    import json
+    urls = {t["url"] for _, _, t in _targets() if "outputs/live/" in t.get("url", "")}
+    assert urls, "no live panels"
+    status = json.loads((ROOT / "outputs" / "live" / "status.json").read_text(encoding="utf-8"))
+    for _, _, t in _targets():
+        if "outputs/live/status.json" in t.get("url", ""):
+            for col in t["columns"]:
+                assert col["selector"] in status, f"status.json has no {col['selector']}"

@@ -7,7 +7,7 @@
   "timezone": "utc",
   "refresh": "30s",
   "time": {
-    "from": "now-1h",
+    "from": "now-30m",
     "to": "now"
   },
   "schemaVersion": 39,
@@ -111,7 +111,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -131,7 +131,7 @@
           "values": false
         },
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -200,7 +200,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -220,7 +220,7 @@
           "values": false
         },
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -289,7 +289,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -309,7 +309,7 @@
           "values": false
         },
         "colorMode": "background",
-        "graphMode": "area",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -352,7 +352,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -372,7 +372,7 @@
           "values": false
         },
         "colorMode": "none",
-        "graphMode": "area",
+        "graphMode": "none",
         "textMode": "name",
         "justifyMode": "center",
         "orientation": "auto"
@@ -428,7 +428,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -447,8 +447,8 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -522,8 +522,8 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -597,8 +597,8 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -641,7 +641,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -660,8 +660,8 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
@@ -980,7 +980,8 @@
             "gradientMode": "opacity",
             "stacking": {
               "mode": "none"
-            }
+            },
+            "axisSoftMax": 0.05
           }
         },
         "overrides": []
@@ -1058,9 +1059,9 @@
     },
     {
       "id": 17,
-      "type": "timeseries",
-      "title": "Target up",
-      "description": "",
+      "type": "state-timeline",
+      "title": "Targets — reachable over the window",
+      "description": "Each scrape: green when Prometheus reached the service, red when it did not.",
       "gridPos": {
         "x": 12,
         "y": 20,
@@ -1086,39 +1087,69 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "#0ca30c",
+                  "index": 0
+                },
+                "0": {
+                  "text": "DOWN",
+                  "color": "#ec835a",
+                  "index": 1
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "no data yet",
+                  "color": "#898781"
+                }
+              }
+            }
+          ],
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ec835a",
+                "value": null
+              },
+              {
+                "color": "#0ca30c",
+                "value": 1
+              }
+            ]
           },
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 12,
-            "showPoints": "never",
-            "spanNulls": false,
-            "gradientMode": "opacity",
-            "stacking": {
-              "mode": "none"
-            }
+            "fillOpacity": 70,
+            "lineWidth": 0
           }
         },
         "overrides": []
       },
       "options": {
+        "showValue": "never",
+        "rowHeight": 0.7,
+        "mergeValues": true,
         "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "showLegend": false
         }
       }
     },
     {
       "id": 18,
       "type": "row",
-      "title": "Model quality — measured offline, published by the API",
+      "title": "Live ingest — every six hours, from Arctic Shift (outputs/live/status.json)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1130,12 +1161,285 @@
     },
     {
       "id": 19,
+      "type": "stat",
+      "title": "Last run",
+      "description": "When the scheduled job last fetched, scored and published.",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "corpus"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://raw.githubusercontent.com/kashaff-codes/apollo-m/main/outputs/live/status.json",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "run_at",
+              "text": "Last run",
+              "type": "timestamp"
+            }
+          ]
+        }
+      ],
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "corpus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeFromNow",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#F4F1EC"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Comments this run",
+      "description": "Newest comments across every tracked community, after bot filtering.",
+      "gridPos": {
+        "x": 6,
+        "y": 28,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "corpus"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://raw.githubusercontent.com/kashaff-codes/apollo-m/main/outputs/live/status.json",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "comments_this_run",
+              "text": "Comments this run",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "corpus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#F4F1EC"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Communities with data",
+      "description": "Of the communities listed in live/communities.txt.",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "corpus"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://raw.githubusercontent.com/kashaff-codes/apollo-m/main/outputs/live/status.json",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "communities_with_data",
+              "text": "Communities with data",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "corpus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#F4F1EC"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Newest comment, minutes before the run",
+      "description": "How far behind Reddit the data was when it was fetched.",
+      "gridPos": {
+        "x": 18,
+        "y": 28,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "corpus"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://raw.githubusercontent.com/kashaff-codes/apollo-m/main/outputs/live/status.json",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "newest_comment_age_min",
+              "text": "Newest comment, minutes before the run",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "corpus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#F4F1EC"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 23,
+      "type": "row",
+      "title": "Model quality — measured offline, published by the API",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 24,
       "type": "bargauge",
       "title": "Forecast error on held-out days (MAE, lower is better)",
       "description": "TFT against repeating the last value and the recent mean. On real Reddit the recent mean wins — reported as found.",
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 33,
         "w": 12,
         "h": 7
       },
@@ -1227,13 +1531,13 @@
       }
     },
     {
-      "id": 20,
+      "id": 25,
       "type": "stat",
       "title": "p10-p90 band coverage",
       "description": "Share of held-out actuals inside the 80% band.",
       "gridPos": {
         "x": 12,
-        "y": 28,
+        "y": 33,
         "w": 4,
         "h": 7
       },
@@ -1263,7 +1567,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -1282,21 +1586,21 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
       }
     },
     {
-      "id": 21,
+      "id": 26,
       "type": "stat",
       "title": "Classifier F1 (macro)",
       "description": "",
       "gridPos": {
         "x": 16,
-        "y": 28,
+        "y": 33,
         "w": 4,
         "h": 7
       },
@@ -1326,7 +1630,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -1345,21 +1649,21 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"
       }
     },
     {
-      "id": 22,
+      "id": 27,
       "type": "stat",
       "title": "Instability ROC-AUC (benchmark)",
       "description": "Against planted ground truth — the score looks for the planted shape.",
       "gridPos": {
         "x": 20,
-        "y": 28,
+        "y": 33,
         "w": 4,
         "h": 7
       },
@@ -1389,7 +1693,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#3987e5",
+                "color": "#F4F1EC",
                 "value": null
               }
             ]
@@ -1408,8 +1712,8 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "orientation": "auto"

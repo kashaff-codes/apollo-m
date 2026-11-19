@@ -25,6 +25,7 @@ REPO = "kashaff-codes/apollo-m"
 PROM = {"type": "prometheus", "uid": "prometheus"}
 CORPUS = {"type": "yesoreyeram-infinity-datasource", "uid": "corpus"}
 BAND = {"CRITICAL": "#d03b3b", "HIGH": "#ec835a", "MEDIUM": "#fab219", "LOW": "#0ca30c"}
+NEUTRAL = "#F4F1EC"   # the console's ink: numbers that carry no status are just text
 SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
 CHI_STEPS = [{"color": BAND["CRITICAL"], "value": None}, {"color": BAND["HIGH"], "value": 65},
              {"color": BAND["MEDIUM"], "value": 75}, {"color": BAND["LOW"], "value": 85}]
@@ -58,14 +59,14 @@ def row(title: str, y: int) -> dict:
 
 
 def stat(title, x, y, w, h, target, unit="none", steps=None, decimals=None, mappings=None, desc="",
-         text_mode="value", color_mode="background"):
+         text_mode="value", color_mode="value"):
     return panel("stat", title, x, y, w, h, [target], desc,
                  fieldConfig={"defaults": {"unit": unit, "decimals": decimals, "mappings": mappings or [],
                                            "thresholds": {"mode": "absolute",
-                                                          "steps": steps or [{"color": SERIES[0], "value": None}]},
+                                                          "steps": steps or [{"color": NEUTRAL, "value": None}]},
                                            "color": {"mode": "thresholds"}}, "overrides": []},
                  options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
-                          "colorMode": color_mode, "graphMode": "area", "textMode": text_mode,
+                          "colorMode": color_mode, "graphMode": "none", "textMode": text_mode,
                           "justifyMode": "center", "orientation": "auto"})
 
 
@@ -74,6 +75,25 @@ def up_mapping(up_text: str, down_text: str) -> list:
         "1": {"text": up_text, "color": BAND["LOW"], "index": 0},
         "0": {"text": down_text, "color": BAND["HIGH"], "index": 1}}},
         {"type": "special", "options": {"match": "null", "result": {"text": "no data yet", "color": "#898781"}}}]
+
+
+def soft_max(p: dict, value: float) -> dict:
+    p["fieldConfig"]["defaults"]["custom"]["axisSoftMax"] = value
+    return p
+
+
+def live_stat(title, x, y, w, h, field, kind, unit="none", desc=""):
+    """One field of outputs/live/status.json, read from GitHub by the Infinity datasource."""
+    q = {"refId": "A", "datasource": CORPUS, "type": "json", "source": "url", "format": "table",
+         "parser": "backend", "url": f"https://raw.githubusercontent.com/{REPO}/main/outputs/live/status.json",
+         "url_options": {"method": "GET", "data": ""},
+         "columns": [{"selector": field, "text": title, "type": kind}]}
+    return panel("stat", title, x, y, w, h, [q], desc,
+                 fieldConfig={"defaults": {"unit": unit, "color": {"mode": "fixed", "fixedColor": NEUTRAL}},
+                              "overrides": []},
+                 options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                          "colorMode": "value", "graphMode": "none", "textMode": "value",
+                          "justifyMode": "center", "orientation": "auto"})
 
 
 def timeseries(title, x, y, w, h, targets, unit="none", desc="", stack=False, overrides=None, legend="list"):
@@ -95,11 +115,11 @@ def overview() -> dict:
     p = [row("Services", 0)]
     p += [
         stat("APOLLO-M API", 0, 1, 6, 4, prom('max(up{job="apollo-api"})', instant=True),
-             mappings=up_mapping("● UP", "✕ DOWN"), desc="Prometheus reached the deployed API's /metrics."),
+             mappings=up_mapping("● UP", "✕ DOWN"), color_mode="background", desc="Prometheus reached the deployed API's /metrics."),
         stat("CEREBRO API", 6, 1, 6, 4, prom('max(up{job="cerebro-api"})', instant=True),
-             mappings=up_mapping("● UP", "✕ DOWN"), desc="Prometheus reached CEREBRO's /metrics."),
+             mappings=up_mapping("● UP", "✕ DOWN"), color_mode="background", desc="Prometheus reached CEREBRO's /metrics."),
         stat("APOLLO-M database", 12, 1, 6, 4, prom("max(apollo_database_up)", instant=True),
-             mappings=up_mapping("● connected", "▲ serving committed outputs"),
+             mappings=up_mapping("● connected", "▲ serving committed outputs"), color_mode="background",
              desc="0 means PostgreSQL is unreachable and the API is serving the committed outputs of the "
                   "same corpus — the same rows, labelled as such in every response."),
         stat("Serving corpus", 18, 1, 6, 4, prom("max by (dataset, source) (apollo_info)", "{{dataset}} · {{source}}",
@@ -133,16 +153,35 @@ def overview() -> dict:
                    [prom('histogram_quantile(0.5, sum by (le) (rate(apollo_api_request_seconds_bucket[5m])))', "p50"),
                     {**prom('histogram_quantile(0.95, sum by (le) (rate(apollo_api_request_seconds_bucket[5m])))',
                             "p95"), "refId": "B"}], unit="s"),
-        timeseries("Server errors (5xx) per second", 18, 12, 6, 8,
+        soft_max(timeseries("Server errors (5xx) per second", 18, 12, 6, 8,
                    [prom('sum(rate(apollo_api_requests_total{status=~"5.."}[5m])) or vector(0)', "5xx")],
-                   unit="reqps"),
+                   unit="reqps"), 0.05),
         timeseries("Scrape duration — includes waking a sleeping free-tier service", 0, 20, 12, 7,
                    [prom("scrape_duration_seconds", "{{job}}")], unit="s"),
-        timeseries("Target up", 12, 20, 12, 7, [prom("up", "{{job}}")]),
+        panel("state-timeline", "Targets — reachable over the window", 12, 20, 12, 7, [prom("up", "{{job}}")],
+              "Each scrape: green when Prometheus reached the service, red when it did not.",
+              fieldConfig={"defaults": {"mappings": up_mapping("UP", "DOWN"), "color": {"mode": "thresholds"},
+                                        "thresholds": {"mode": "absolute", "steps": [
+                                            {"color": BAND["HIGH"], "value": None},
+                                            {"color": BAND["LOW"], "value": 1}]},
+                                        "custom": {"fillOpacity": 70, "lineWidth": 0}}, "overrides": []},
+              options={"showValue": "never", "rowHeight": 0.7, "mergeValues": True,
+                       "legend": {"showLegend": False}}),
     ]
-    p.append(row("Model quality — measured offline, published by the API", 27))
+    p.append(row("Live ingest — every six hours, from Arctic Shift (outputs/live/status.json)", 27))
     p += [
-        panel("bargauge", "Forecast error on held-out days (MAE, lower is better)", 0, 28, 12, 7,
+        live_stat("Last run", 0, 28, 6, 4, "run_at", "timestamp", unit="dateTimeFromNow",
+                  desc="When the scheduled job last fetched, scored and published."),
+        live_stat("Comments this run", 6, 28, 6, 4, "comments_this_run", "number",
+                  desc="Newest comments across every tracked community, after bot filtering."),
+        live_stat("Communities with data", 12, 28, 6, 4, "communities_with_data", "number",
+                  desc="Of the communities listed in live/communities.txt."),
+        live_stat("Newest comment, minutes before the run", 18, 28, 6, 4, "newest_comment_age_min", "number",
+                  desc="How far behind Reddit the data was when it was fetched."),
+    ]
+    p.append(row("Model quality — measured offline, published by the API", 32))
+    p += [
+        panel("bargauge", "Forecast error on held-out days (MAE, lower is better)", 0, 33, 12, 7,
               [prom("max by (method) (apollo_forecast_mae)", "{{method}}", instant=True)],
               "TFT against repeating the last value and the recent mean. On real Reddit the recent mean wins — "
               "reported as found.",
@@ -154,15 +193,15 @@ def overview() -> dict:
                                                       ("recent_mean", SERIES[2])]]},
               options={"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True,
                        "reduceOptions": {"calcs": ["lastNotNull"], "values": False}}),
-        stat("p10-p90 band coverage", 12, 28, 4, 7, prom("max(apollo_forecast_coverage)", instant=True),
+        stat("p10-p90 band coverage", 12, 33, 4, 7, prom("max(apollo_forecast_coverage)", instant=True),
              unit="percentunit", decimals=0, desc="Share of held-out actuals inside the 80% band."),
-        stat("Classifier F1 (macro)", 16, 28, 4, 7, prom("max(apollo_toxicity_f1_macro)", instant=True), decimals=3),
-        stat("Instability ROC-AUC (benchmark)", 20, 28, 4, 7, prom("max(apollo_instability_roc_auc)", instant=True),
+        stat("Classifier F1 (macro)", 16, 33, 4, 7, prom("max(apollo_toxicity_f1_macro)", instant=True), decimals=3),
+        stat("Instability ROC-AUC (benchmark)", 20, 33, 4, 7, prom("max(apollo_instability_roc_auc)", instant=True),
              decimals=3, desc="Against planted ground truth — the score looks for the planted shape."),
     ]
     return {
         "uid": "apollo-overview", "title": "APOLLO-M · Operations", "tags": ["apollo-m"],
-        "timezone": "utc", "refresh": "30s", "time": {"from": "now-1h", "to": "now"},
+        "timezone": "utc", "refresh": "30s", "time": {"from": "now-30m", "to": "now"},
         "schemaVersion": 39, "version": 1, "editable": False, "graphTooltip": 1,
         "links": [{"title": "Corpus history", "type": "link", "url": "/d/apollo-corpus", "icon": "dashboard"},
                   {"title": "Prometheus", "type": "link", "url": "/prometheus/", "targetBlank": True},
