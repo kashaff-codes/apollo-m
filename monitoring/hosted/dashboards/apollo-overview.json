@@ -1188,9 +1188,9 @@
           },
           "columns": [
             {
-              "selector": "run_at",
+              "selector": "run_at_ms",
               "text": "Last run",
-              "type": "timestamp"
+              "type": "number"
             }
           ]
         }
@@ -1396,7 +1396,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "m",
           "color": {
             "mode": "fixed",
             "fixedColor": "#F4F1EC"

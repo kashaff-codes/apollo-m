@@ -334,6 +334,7 @@ def main() -> None:
     newest = int(df["created_utc"].max()) if len(df) else None
     status = {
         "run_at": run_at.isoformat(),
+        "run_at_ms": int(run_at.timestamp() * 1000),   # for Grafana's "x hours ago"
         "window_hours": args.hours,
         "communities_tracked": len(subs),
         "communities_with_data": int(df["subreddit"].nunique()) if len(df) else 0,

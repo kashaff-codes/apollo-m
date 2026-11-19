@@ -170,13 +170,13 @@ def overview() -> dict:
     ]
     p.append(row("Live ingest — every six hours, from Arctic Shift (outputs/live/status.json)", 27))
     p += [
-        live_stat("Last run", 0, 28, 6, 4, "run_at", "timestamp", unit="dateTimeFromNow",
+        live_stat("Last run", 0, 28, 6, 4, "run_at_ms", "number", unit="dateTimeFromNow",
                   desc="When the scheduled job last fetched, scored and published."),
         live_stat("Comments this run", 6, 28, 6, 4, "comments_this_run", "number",
                   desc="Newest comments across every tracked community, after bot filtering."),
         live_stat("Communities with data", 12, 28, 6, 4, "communities_with_data", "number",
                   desc="Of the communities listed in live/communities.txt."),
-        live_stat("Newest comment, minutes before the run", 18, 28, 6, 4, "newest_comment_age_min", "number",
+        live_stat("Newest comment, minutes before the run", 18, 28, 6, 4, "newest_comment_age_min", "number", unit="m",
                   desc="How far behind Reddit the data was when it was fetched."),
     ]
     p.append(row("Model quality — measured offline, published by the API", 32))
