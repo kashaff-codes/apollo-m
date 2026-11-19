@@ -162,3 +162,25 @@ test("a failed sign-in points at sign-up instead of a dead end", async ({
   ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /create one/i })).toBeVisible();
 });
+
+test("sign-in offers Google, which needs no confirmation email", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await expect(
+    page.getByRole("button", { name: /continue with google/i }),
+  ).toBeVisible();
+});
+
+test("a broken or expired email link lands on sign-in with a reason, not an error page", async ({
+  page,
+}) => {
+  await page.goto("/auth/confirm?next=/watchlist");
+  await expect(page).toHaveURL(/\/login\?error=/);
+  await expect(page.getByText(/link is incomplete/i)).toBeVisible();
+  // and `next` can never send someone to another site
+  await page.goto(
+    "/auth/confirm?error_description=expired&next=//evil.example",
+  );
+  await expect(page).toHaveURL(/\/login\?error=expired/);
+});

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -12,7 +13,34 @@ import { createClient } from "@/lib/supabase/server";
  * server rather than written from client code.
  */
 
-export type AuthState = { error?: string; message?: string };
+export type AuthState = {
+  error?: string;
+  message?: string;
+  /** The account exists but its email is not confirmed: offer to resend the link. */
+  unconfirmed?: string;
+};
+
+/** This site's origin, from the request: where Supabase should send people back to. */
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const origin = h.get("origin");
+  if (origin) return origin;
+  const host =
+    h.get("x-forwarded-host") ?? h.get("host") ?? "apollo-m.vercel.app";
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+function safeNext(raw: FormDataEntryValue | null): string {
+  const s = String(raw ?? "");
+  return s.startsWith("/") && !s.startsWith("//") ? s : "/watchlist";
+}
+
+async function confirmUrl(next: string): Promise<string> {
+  return `${await siteOrigin()}/auth/confirm?next=${encodeURIComponent(next)}`;
+}
 
 function readCredentials(formData: FormData) {
   return {
@@ -51,11 +79,19 @@ export async function signIn(
           "signed up yet, create one below.",
       };
     }
+    if (/email not confirmed/i.test(error.message)) {
+      return {
+        error:
+          "This account's email address is not confirmed yet. Open the link we " +
+          "emailed you, or send a new one.",
+        unconfirmed: email,
+      };
+    }
     return { error: error.message };
   }
 
   revalidatePath("/", "layout");
-  redirect(String(formData.get("next") || "/watchlist"));
+  redirect(safeNext(formData.get("next")));
 }
 
 export async function signUp(
@@ -67,8 +103,27 @@ export async function signUp(
     return { error: "Password must be at least 8 characters." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  // Without emailRedirectTo the link in the email falls back to the project's
+  // Site URL (the Streamlit console), which cannot finish a web sign-up.
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: await confirmUrl(safeNext(formData.get("next"))),
+    },
+  });
   if (error) return { error: error.message };
+
+  // Supabase answers a sign-up for an address that already has a confirmed
+  // account with a user that has no identities (so the form cannot be used to
+  // discover who is registered) and sends nothing. Say so instead of promising
+  // an email that will never come.
+  if (data.user && (data.user.identities ?? []).length === 0) {
+    return {
+      error:
+        "That email address already has an account. Sign in, or use Continue with Google.",
+    };
+  }
 
   // With "Confirm email" on (the Supabase default) there is no session yet and
   // the user has to click the link first. With it off they are signed in
@@ -77,7 +132,56 @@ export async function signUp(
     revalidatePath("/", "layout");
     redirect("/watchlist");
   }
-  return { message: `Check ${email} for a confirmation link.` };
+  return {
+    message:
+      `We sent a confirmation link to ${email}. Open it on this device to finish ` +
+      "signing up (check Spam or Promotions if it is not in your inbox).",
+    unconfirmed: email,
+  };
+}
+
+/** Send the confirmation email again (the first may be in spam, or expired). */
+export async function resendConfirmation(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "Enter your email address first." };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: await confirmUrl(safeNext(formData.get("next"))),
+    },
+  });
+  if (error) {
+    if (/rate|seconds|too many/i.test(error.message))
+      return {
+        error:
+          "A link was sent a moment ago. Wait a minute before asking for another.",
+        unconfirmed: email,
+      };
+    return { error: error.message, unconfirmed: email };
+  }
+  return {
+    message: `A new confirmation link is on its way to ${email}.`,
+    unconfirmed: email,
+  };
+}
+
+/** Sign in with Google through Supabase: no password, no confirmation email. */
+export async function signInWithGoogle(formData: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: await confirmUrl(safeNext(formData.get("next"))) },
+  });
+  if (error || !data.url)
+    redirect(
+      `/login?error=${encodeURIComponent(error?.message ?? "Google sign-in is unavailable.")}`,
+    );
+  redirect(data.url);
 }
 
 export async function signOut() {
