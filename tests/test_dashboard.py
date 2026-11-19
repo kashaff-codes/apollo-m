@@ -138,7 +138,7 @@ def test_third_party_text_is_inert():
 # ── the app itself, headless ────────────────────────────────────────────────
 
 PAGES = ["Overview", "Dynamics", "Communities", "Forecast", "🎯 Actions", "Clusters",
-         "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring"]
+         "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring", "🛡 Admin"]
 
 
 @pytest.fixture(scope="module")
@@ -147,10 +147,17 @@ def app(monkeypatch_module):
     import requests
     # The Monitoring page fetches the live /metrics endpoint; keep the test offline.
     monkeypatch_module.setattr(requests, "get", lambda *a, **k: (_ for _ in ()).throw(OSError("offline")))
+    # The developer sign-in exists only with APOLLO_DEV_LOGIN=1 (never set on the
+    # hosted app); the real login needs Supabase, which the suite must not call.
+    monkeypatch_module.setenv("APOLLO_DEV_LOGIN", "1")
+    monkeypatch_module.setenv("APOLLO_ACCOUNTS", "off")
+    for var in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_URL",
+                "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"):
+        monkeypatch_module.delenv(var, raising=False)
     at = AppTest.from_file(str(ROOT / "dashboard" / "app.py"), default_timeout=120)
     at.run()
     assert not at.exception, at.exception
-    [b for b in at.button if "Sign in as demo" in b.label][0].click().run()
+    [b for b in at.button if "Developer sign-in" in b.label][0].click().run()
     assert not at.exception, at.exception
     return at
 
@@ -172,3 +179,12 @@ def test_every_page_renders(app, corpus, page):
     assert not app.exception, f"{page} on {corpus}: {app.exception}"
     text = " ".join(m.value for m in app.markdown)
     assert "Traceback" not in text
+
+
+
+def test_login_page_has_no_shared_passwords_or_demo_door():
+    """No hard-coded accounts, no public bypass: the dev sign-in needs APOLLO_DEV_LOGIN=1."""
+    src = (ROOT / "dashboard" / "app.py").read_text(encoding="utf-8")
+    assert '"apollo_admin"' not in src and "USERS = {" not in src
+    assert "Sign in as demo" not in src
+    assert 'DEV_LOGIN = _os.getenv("APOLLO_DEV_LOGIN") == "1"' in src

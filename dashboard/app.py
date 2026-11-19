@@ -112,113 +112,185 @@ def finding(html: str):
 
 
 # ── Authentication ──────────────────────────────────────────────────────────
-USERS = {"admin": "apollo_admin", "analyst": "apollo_analyst", "viewer": "apollo_viewer"}
+# Accounts live in Supabase Auth, shared with the public web view (auth.py has
+# the protocol, web/supabase/accounts.sql the database rules). There are no
+# passwords in this file and no public demo button: a hard-coded "admin /
+# apollo_admin" shown on the login page is a door with the key taped to it.
+import auth as A  # noqa: E402
+import streamlit.components.v1 as _components  # noqa: E402
+
+APP_URL = _os.getenv("APP_URL", "https://apollo-m.streamlit.app").rstrip("/")
+DEV_LOGIN = _os.getenv("APOLLO_DEV_LOGIN") == "1"   # local development and tests only
+COOKIE = "apollo_session"
 
 
-def _google_ready() -> bool:
-    """
-    Show the Google button only when sign-in can actually succeed: secrets
-    present AND Authlib importable. A visible control that always fails is
-    worse than no control, especially in a live demo.
-    """
-    try:
-        if "auth" not in st.secrets:
-            return False
-    except Exception:
-        return False
-    try:
-        import authlib  # noqa: F401
-    except Exception:
-        return False
-    return True
+def _remember(token: str | None) -> None:
+    """Keep (or forget) the refresh token in a first-party cookie for 30 days.
+    Streamlit cannot set cookies itself; this tiny component writes it on the
+    app's own origin. The token is single-use (Supabase rotates it) and revoked
+    on sign-out."""
+    if token:
+        js = (f"parent.document.cookie='{COOKIE}={token}; Max-Age=2592000; Path=/; "
+              "SameSite=Lax; Secure';")
+    else:
+        js = f"parent.document.cookie='{COOKIE}=; Max-Age=0; Path=/; SameSite=Lax; Secure';"
+    _components.html(f"<script>{js}</script>", height=0)
 
 
-def _auth_origin_mismatch() -> str | None:
-    """
-    Explain why Google sign-in cannot work here, or return None if it should.
-
-    st.login() sends the browser to Google carrying the redirect_uri from the
-    [auth] block in secrets. If that origin is not the one the app is served
-    from, Streamlit surfaces a bare "Internal server error". The usual cause is
-    a secrets file copied from a laptop with redirect_uri still on localhost.
-    """
-    try:
-        configured = str(st.secrets["auth"]["redirect_uri"])
-    except Exception:
-        return "No redirect_uri is set in the [auth] block of secrets."
-    try:
-        here = st.context.url
-    except Exception:
-        return None
-    if not here:
-        return None
-    from urllib.parse import urlparse
-    want, got = urlparse(configured), urlparse(here)
-    if (want.scheme, want.netloc) == (got.scheme, got.netloc):
-        return None
-    return (
-        f"Google sign-in is configured to return to **{want.scheme}://{want.netloc}**, "
-        f"but this app is being served from **{got.scheme}://{got.netloc}**. "
-        f"Set `redirect_uri = \"{got.scheme}://{got.netloc}/oauth2callback\"` in the "
-        f"[auth] block of the app's secrets, and add that same URL to the OAuth "
-        f"client's authorised redirect URIs in Google Cloud Console."
-    )
+def _start(s: A.Session, how: str) -> None:
+    s = A.profile(s)
+    st.session_state.session = s
+    st.session_state.user = s.email
+    st.session_state.remember = st.session_state.get("remember_me", True)
+    A.log(s, "sign_in", {"method": how})
 
 
-GOOGLE = _google_ready()
-GOOGLE_PROBLEM = _auth_origin_mismatch() if GOOGLE else None
-try:
-    if GOOGLE and getattr(st, "user", None) is not None and st.user.is_logged_in:
-        st.session_state.user = st.user.email
-except Exception:
-    pass
+st.session_state.setdefault("session", None)
 st.session_state.setdefault("user", None)
 
-if not st.session_state.user:
+# 1. Returning from Google (OAuth code + our nonce in the query string).
+_q = st.query_params
+if not st.session_state.session and _q.get("auth") == "google" and _q.get("code"):
+    try:
+        _start(A.google_exchange(_q["code"], _q.get("n", "")), "google")
+        st.session_state.remember_me = True
+    except A.AuthError as exc:
+        st.session_state.auth_error = str(exc)
+    st.query_params.clear()
+
+# 2. A remembered session: exchange the saved refresh token for a fresh one.
+if not st.session_state.session and not st.session_state.get("signed_out"):
+    try:
+        _saved = (st.context.cookies or {}).get(COOKIE)
+    except Exception:  # noqa: BLE001
+        _saved = None
+    if _saved and A.config():
+        try:
+            _start(A.refresh(_saved), "remembered")
+        except A.AuthError:
+            st.session_state.forget_cookie = True
+
+# 3. An active session whose access token has expired: refresh it quietly.
+if st.session_state.session:
+    try:
+        st.session_state.session = A.ensure_fresh(st.session_state.session)
+    except A.AuthError:
+        st.session_state.session = None
+        st.session_state.user = None
+
+if st.session_state.session and st.session_state.get("remember", True):
+    _remember(st.session_state.session.refresh_token)
+if st.session_state.pop("forget_cookie", False):
+    _remember(None)
+
+
+def _login_page() -> None:
     st.markdown("""<style>
-    .stApp .block-container{padding-top:5vh}
+    .stApp .block-container{padding-top:7vh;max-width:1180px}
+    section[data-testid="stSidebar"]{display:none}
     div[data-testid="stForm"]{background:#1A1430;border:1px solid rgba(201,191,227,.14);
-      border-radius:14px;padding:22px 22px 6px;}
+      border-radius:16px;padding:26px 26px 10px;}
+    .auth-side{padding:8px 34px 0 0}
+    .auth-points{margin:26px 0 0;padding:0;list-style:none}
+    .auth-points li{display:flex;gap:12px;margin:0 0 14px;color:#C9BFE3;font-size:.98rem;line-height:1.45}
+    .auth-points b{color:#F4F1EC;font-weight:500}
+    .auth-points span.k{flex:0 0 26px;color:#A58CF0;font-family:'JetBrains Mono',monospace;font-size:.8rem;padding-top:3px}
+    .google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+      padding:11px 0;border-radius:10px;border:1px solid rgba(201,191,227,.25);background:#F4F1EC;
+      color:#110C1F !important;font-weight:600;text-decoration:none !important;margin:4px 0 6px}
+    .google-btn:hover{background:#fff}
+    .or{display:flex;align-items:center;gap:12px;color:#7c83b3;font-size:.8rem;margin:14px 0 10px}
+    .or:before,.or:after{content:"";flex:1;height:1px;background:rgba(201,191,227,.16)}
+    /* Inputs inside the card: a darker well with a visible edge, or they vanish
+       into the card (same colour as the theme's secondary background). */
+    div[data-testid="stForm"] div[data-testid="stTextInputRootElement"]{background:#110C1F !important;
+      border:1px solid rgba(201,191,227,.26) !important;border-radius:10px !important}
+    div[data-testid="stForm"] div[data-testid="stTextInputRootElement"]:focus-within{
+      border-color:#A58CF0 !important}
+    div[data-testid="stForm"] input{background:transparent !important;color:#F4F1EC !important}
+    .auth-side .hook{margin-bottom:14px}
     </style>""", unsafe_allow_html=True)
-    _, mid, _ = st.columns([1, 1.25, 1])
-    with mid:
+    left, right = st.columns([1.15, 1], gap="large")
+    with left:
         _real = [load("meso", d.key) for d in AD.real()]
-        st.markdown(T.status_strip([
+        st.markdown('<div class="auth-side">' + T.status_strip([
             ("real comments read", f"{int(sum(m['total_comments'].sum() for m in _real)):,}"),
-            ("communities", str(len(set().union(*[set(m["subreddit"]) for m in _real])))),
-            ("corpora", str(len(AD.available())))]), unsafe_allow_html=True)
-        st.markdown('<div class="hook">Moderation reacts to the worst day.<br>'
-                    'APOLLO-M watches the five before it.</div>', unsafe_allow_html=True)
-        st.markdown("<p class='apollo-sub'>Toxicity, community health and five-day forecasts for Reddit "
-                    "communities, measured on real comments and checked against what actually happened "
-                    "next.</p>", unsafe_allow_html=True)
-        if GOOGLE:
-            if st.button("Continue with Google", use_container_width=True,
-                         type=("secondary" if GOOGLE_PROBLEM else "primary"), disabled=bool(GOOGLE_PROBLEM)):
+            ("communities", str(len(set().union(*[set(m["subreddit"]) for m in _real]))))]) +
+            '<div class="hook" style="margin-top:22px">Moderation reacts to the worst day.<br>'
+            'APOLLO-M watches the five before it.</div>'
+            "<p class='apollo-sub'>Community health, early warning and forecasts for Reddit "
+            "communities, measured on real comments and checked against what happened next.</p>"
+            '<ul class="auth-points">'
+            '<li><span class="k">01</span><span><b>One health score per community</b>, and the four '
+            'measurements behind it.</span></li>'
+            '<li><span class="k">02</span><span><b>Live.</b> New comments are fetched and scored every '
+            'six hours; any topic can be searched now.</span></li>'
+            '<li><span class="k">03</span><span><b>Honest forecasts.</b> Tested on days that had not '
+            'happened yet, and reported when a simple baseline wins.</span></li>'
+            "</ul></div>", unsafe_allow_html=True)
+    with right:
+        if err := st.session_state.pop("auth_error", None):
+            st.error(err)
+        if not A.config():
+            st.warning("Accounts are not configured on this deployment (SUPABASE_URL and "
+                       "SUPABASE_PUBLISHABLE_KEY are missing).")
+        tab_in, tab_up = st.tabs(["Sign in", "Create account"])
+        with tab_in:
+            if A.config() and A.google_enabled():
                 try:
-                    st.login("google")
-                except Exception as exc:  # noqa: BLE001
-                    st.error(f"Google sign-in failed: {exc}")
-                    st.info("Sign in with **admin / apollo_admin** below — the dashboard does not depend on Google.")
-            if GOOGLE_PROBLEM:
-                st.warning(GOOGLE_PROBLEM)
-            st.markdown("<p style='text-align:center;color:#7c83b3'>— or sign in with an account —</p>",
-                        unsafe_allow_html=True)
-        with st.form("login"):
-            u = st.text_input("Username", placeholder="admin")
-            p = st.text_input("Password", type="password", placeholder="apollo_admin")
-            ok = st.form_submit_button("Sign in", use_container_width=True, type=("secondary" if GOOGLE else "primary"))
-            if ok:
-                if USERS.get(u.strip().lower()) == p.strip():
-                    st.session_state.user = u.strip().lower()
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials. Username is **admin**, password is **apollo_admin**.")
-        if st.button("⚡ Sign in as demo (admin)", use_container_width=True):
-            st.session_state.user = "admin"
+                    st.markdown(f'<a class="google-btn" href="{A.google_url(APP_URL)}" target="_self">'
+                                '<b>G</b>&nbsp; Continue with Google</a>', unsafe_allow_html=True)
+                except A.AuthError:
+                    pass
+                st.markdown('<div class="or">or with email</div>', unsafe_allow_html=True)
+            with st.form("sign_in"):
+                email = st.text_input("Email", autocomplete="email")
+                password = st.text_input("Password", type="password", autocomplete="current-password")
+                st.checkbox("Keep me signed in on this device", value=True, key="remember_me")
+                if st.form_submit_button("Sign in", use_container_width=True, type="primary"):
+                    try:
+                        _start(A.sign_in(email, password), "password")
+                        st.session_state.signed_out = False
+                        st.rerun()
+                    except A.AuthError as exc:
+                        st.error(str(exc))
+        with tab_up:
+            with st.form("sign_up"):
+                name = st.text_input("Full name", autocomplete="name")
+                email2 = st.text_input("Work email", autocomplete="email")
+                pw2 = st.text_input("Password", type="password", autocomplete="new-password",
+                                    help=f"At least {A.MIN_PASSWORD} characters, not only letters or only numbers.")
+                st.caption("Your activity in APOLLO-M (sign-ins, pages opened, searches) is recorded "
+                           "against your account and visible to your organisation's administrators.")
+                if st.form_submit_button("Create account", use_container_width=True, type="primary"):
+                    try:
+                        out = A.sign_up(email2, pw2, name)
+                        if isinstance(out, str):
+                            st.success(out)
+                        else:
+                            _start(out, "sign_up")
+                            st.rerun()
+                    except A.AuthError as exc:
+                        st.error(str(exc))
+        if DEV_LOGIN and st.button("Developer sign-in (local only)", use_container_width=True):
+            st.session_state.session = A.Session("dev", "", 9e12, "dev", "developer@localhost",
+                                                 "Developer", "dev", role="admin")
+            st.session_state.user = "developer@localhost"
             st.rerun()
-        st.caption("Demo accounts — **admin / apollo_admin** · analyst / apollo_analyst · viewer / apollo_viewer")
+
+
+if not st.session_state.session:
+    _login_page()
     st.stop()
+
+SESSION: A.Session = st.session_state.session
+IS_ADMIN = SESSION.role == "admin"
+
+
+def track(action: str, **detail) -> None:
+    """One activity row for this user (best effort; skipped for the dev session)."""
+    if SESSION.provider != "dev":
+        A.log(SESSION, action, detail)
 
 
 # ── Sidebar: corpus, page, connected systems ────────────────────────────────
@@ -229,13 +301,15 @@ LABELS = {d.key: d.label for d in AD.DATASETS.values()}
 with st.sidebar:
     st.markdown('<div class="apollo-title" style="font-size:1.55rem"><span class="mark">●</span> APOLLO-M</div>',
                 unsafe_allow_html=True)
-    st.caption(f"Signed in: **{st.session_state.user}**")
+    st.caption(f"Signed in as **{safe(SESSION.name or SESSION.email)}**"
+               + (" · admin" if IS_ADMIN else "") + f"  \n{safe(SESSION.email)}")
     key = st.selectbox("Corpus", KEYS, index=KEYS.index(AD.DEFAULT) if AD.DEFAULT in KEYS else 0,
                        format_func=lambda k: LABELS[k],
                        help="Four corpora, one pipeline. The benchmark is a declared simulation with "
                             "recorded ground truth; the other three are real Reddit comments.")
     page = st.radio("Navigate", ["Overview", "Dynamics", "Communities", "Forecast", "🎯 Actions", "Clusters",
-                                 "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring"])
+                                 "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring"]
+                    + (["🛡 Admin"] if IS_ADMIN else []))
     provider = st.radio("LLM provider", ["claude", "ollama"], horizontal=True,
                         help="Claude = cloud API. Ollama = local and free, needs `ollama serve`.")
     st.divider()
@@ -246,13 +320,18 @@ with st.sidebar:
     st.link_button("🔌 API docs", f"{API_URL}/docs", use_container_width=True)
     st.divider()
     if st.button("Sign out", use_container_width=True, key="sidebar_signout"):
+        track("sign_out")
+        A.sign_out(SESSION)          # revokes the refresh token on the server
+        _remember(None)              # and forgets it in this browser
+        st.session_state.session = None
         st.session_state.user = None
-        try:
-            if GOOGLE and getattr(st, "user", None) is not None and st.user.is_logged_in:
-                st.logout()
-        except Exception:
-            pass
+        st.session_state.signed_out = True
         st.rerun()
+
+# One activity row per page opened (and per corpus switched), not per rerun.
+if (page, key) != st.session_state.get("_last_view"):
+    st.session_state._last_view = (page, key)
+    track("page_view", page=page.split(" ", 1)[-1] if page[0] in "🎯🔴📡🛡" else page, corpus=key)
 
 DS = AD.get(key)
 meso = load("meso", key)
@@ -388,6 +467,7 @@ elif page == "Communities":
                        title=f"{sel} — daily toxicity and volume"),
              dsub[["date", "avg_toxicity", "comment_count"]], key="cm_hist")
     if st.button(f"🧠 Explain {sel} with {provider}", type="primary"):
+        track("explain", community=sel, provider=provider)
         with st.spinner(f"Asking {provider}…"):
             from llm.explain import explain_community
             txt = explain_community({
@@ -732,6 +812,8 @@ elif page == "📡 Topic watch":
         with st.spinner(f"asking Arctic Shift about “{q}” in {len(subs)} communities…"):
             res = AL.topic_watch(q.strip(), subs, hours=hours, kind=kind)
         st.session_state["topic_res"] = res
+        track("topic_search", query=q.strip()[:120], communities=len(subs), hours=hours,
+              kind=kind, matches=len(res["rows"]))
     res = st.session_state.get("topic_res")
     if res:
         rows = pd.DataFrame(res["rows"])
@@ -763,6 +845,50 @@ elif page == "📡 Topic watch":
     st.caption("Why a list of communities: Arctic Shift's keyword search must name the subreddits to search. "
                "Searching all of Reddit at once needs Reddit's own API (a registered app: "
                "REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET). Nothing here is stored.")
+
+elif page == "🛡 Admin":
+    header("Admin", "Who is using APOLLO-M, and how. Visible to administrators only; "
+                    "the database enforces it.", strip=False)
+    if not IS_ADMIN:
+        st.stop()
+    days = st.select_slider("Window", options=[1, 7, 30, 90], value=30, format_func=lambda d: f"last {d} days")
+    users, acts = A.admin_activity(SESSION, since_days=days)
+    U = pd.DataFrame(users)
+    E = pd.DataFrame(acts)
+    if U.empty:
+        st.info("No accounts yet, or the accounts schema (web/supabase/accounts.sql) is not applied.")
+        st.stop()
+    if not E.empty:
+        E["at"] = pd.to_datetime(E["at"], utc=True)
+        E = E.merge(U[["id", "email"]], left_on="user_id", right_on="id", how="left")
+    active = int(E["user_id"].nunique()) if not E.empty else 0
+    st.markdown(T.kpi_row([
+        T.kpi("Accounts", f"{len(U):,}", f"{int((U['role'] == 'admin').sum())} admin"),
+        T.kpi("Active users", f"{active:,}", f"in the last {days} days"),
+        T.kpi("Sign-ins", f"{int((E['action'] == 'sign_in').sum()) if not E.empty else 0:,}", "password, Google or remembered"),
+        T.kpi("Topic searches", f"{int((E['action'] == 'topic_search').sum()) if not E.empty else 0:,}", "on Topic watch"),
+    ]), unsafe_allow_html=True)
+    if not E.empty:
+        import plotly.graph_objects as _go
+        per_day = E.assign(day=E["at"].dt.floor("D")).groupby(["day", "action"]).size().reset_index(name="n")
+        fig = _go.Figure()
+        for i, (act, g) in enumerate(per_day.groupby("action")):
+            fig.add_trace(_go.Bar(x=g["day"], y=g["n"], name=act, marker_color=T.SERIES[i % len(T.SERIES)]))
+        fig.update_layout(barmode="stack", height=360, title_text="Activity per day, by kind")
+        show(fig, per_day, key="admin_daily")
+        by_user = (E.groupby("email").agg(actions=("action", "size"), last=("at", "max"),
+                                           searches=("action", lambda s: int((s == "topic_search").sum())))
+                     .reset_index().sort_values("actions", ascending=False))
+        st.markdown("#### Per account")
+        st.dataframe(U.merge(by_user, on="email", how="left").fillna({"actions": 0, "searches": 0})
+                     [["email", "full_name", "role", "created_at", "last_seen_at", "actions", "searches"]],
+                     use_container_width=True, hide_index=True)
+        st.markdown("#### Recent activity")
+        recent = E.head(200).copy()
+        recent["detail"] = recent["detail"].map(lambda d: ", ".join(f"{k}: {v}" for k, v in (d or {}).items()))
+        st.dataframe(recent[["at", "email", "action", "detail"]], use_container_width=True, hide_index=True)
+    st.caption("Rows come from public.activity through row-level security: a non-admin asking the same "
+               "question gets only their own rows. Roles are changed in the database, not here.")
 
 elif page == "Monitoring":
     header("Monitoring", "Both APIs, scraped every thirty seconds. Public, read-only.")

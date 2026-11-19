@@ -10,7 +10,7 @@ Kashaf Fatima · Rizwan Saleem · Aaqib Mehmood. Supervisor: Mr. Saghir Ahmed.
 
 | | |
 |---|---|
-| Analyst console | **https://apollo-m.streamlit.app** — sign in as `admin` / `apollo_admin`, or press *Sign in as demo* |
+| Analyst console | **https://apollo-m.streamlit.app** — create an account (email, or Google once enabled); accounts are shared with the web view |
 | Public web view | https://apollo-m.vercel.app — no login |
 | REST API | https://apollo-api-tllm.onrender.com/docs |
 | Monitoring | https://apollo-m-monitoring.onrender.com — Grafana, read-only, no login · [`/prometheus/`](https://apollo-m-monitoring.onrender.com/prometheus/) |
@@ -22,6 +22,25 @@ Open Grafana a few minutes before showing it: Prometheus starts without history 
 **For a reviewer:** [`docs/PRODUCT_BRIEF.md`](docs/PRODUCT_BRIEF.md) answers what it is
 for, who would buy it, how reliable it is (with evidence), how data gets in, and
 how a customer would deploy it.
+
+---
+
+## Accounts and access
+
+One identity for the web view and the console: **Supabase Auth**. Passwords are
+hashed by Supabase and never seen by APOLLO-M; a session is a signed JWT (about
+an hour) plus a rotating refresh token, kept for 30 days when *Keep me signed in*
+is ticked, and revoked on the server at sign-out. Google sign-in uses OAuth 2.0
+with PKCE. Five failed sign-ins lock an email out for fifteen minutes; passwords
+need at least ten characters, not only letters or only digits.
+
+What a user may read is decided by the database, not the app
+([`web/supabase/accounts.sql`](web/supabase/accounts.sql)): each user reads their
+own profile and activity; an **admin** (a role in `public.profiles`, granted in
+SQL, not a password in code) reads everyone's, which is what the console's
+*Admin* page shows. The activity log is append-only. There are no shared
+accounts and no public demo button; a developer sign-in exists only with
+`APOLLO_DEV_LOGIN=1`, for local work and tests.
 
 ---
 
