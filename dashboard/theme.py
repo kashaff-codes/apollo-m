@@ -138,7 +138,16 @@ a {{ color: {LINK}; }}
   background: {SURFACE}; margin-bottom: 18px; }}
 [data-testid="stPlotlyChart"]:nth-of-type(2) {{ animation-delay: .12s; }}
 [data-testid="stPlotlyChart"]:nth-of-type(3) {{ animation-delay: .24s; }}
-@media (prefers-reduced-motion: reduce) {{ [data-testid="stPlotlyChart"], .kpi {{ animation: none; }} }}
+/* Every chart draws itself in: the plotting area wipes left to right, so lines
+   trace out and bars appear in order. Legends and axes are already there. */
+[data-testid="stPlotlyChart"] .main-svg .cartesianlayer .overplot {{
+  animation: wipe 1.25s cubic-bezier(.65,0,.35,1) .15s both; }}
+@keyframes wipe {{ from {{ clip-path: inset(0 100% 0 0); }} to {{ clip-path: inset(0 0 0 0); }} }}
+/* Bars and markers brighten slightly under the pointer. */
+[data-testid="stPlotlyChart"] .point path {{ transition: opacity .2s ease; }}
+[data-testid="stPlotlyChart"] .point path:hover {{ opacity: .85; }}
+@media (prefers-reduced-motion: reduce) {{ [data-testid="stPlotlyChart"], .kpi,
+  [data-testid="stPlotlyChart"] .main-svg .cartesianlayer .overplot {{ animation: none; }} }}
 
 .prov {{ border-radius: 14px; padding: 14px 18px; margin: 4px 0 16px; background: {SURFACE};
          border: 1px solid {rgba(MIST, .12)}; border-left: 3px solid {LINK}; animation: rise .45s ease-out both; }}

@@ -181,7 +181,8 @@ def phase_space(ps: pd.DataFrame, bands: dict[str, str], max_frames: int = 60) -
     fig.update_layout(
         xaxis=dict(title="toxicity level (5-day trailing mean)", range=xr),
         yaxis=dict(title="momentum (change over 5 days)", range=yr),
-        updatemenus=[dict(type="buttons", showactive=False, x=0, y=-.16, xanchor="left", yanchor="top",
+        updatemenus=[dict(type="buttons", direction="left", showactive=False, x=0, y=-.22, xanchor="left",
+                          yanchor="top", pad=dict(t=0, r=8),
                           bgcolor="#1b1c3d", bordercolor=T.AXIS, font=dict(color=T.INK),
                           buttons=[dict(label="▶ Play", method="animate",
                                         args=[None, dict(frame=dict(duration=380, redraw=False),
@@ -189,12 +190,14 @@ def phase_space(ps: pd.DataFrame, bands: dict[str, str], max_frames: int = 60) -
                                                          fromcurrent=True, mode="immediate")]),
                                    dict(label="❚❚ Pause", method="animate",
                                         args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
-        sliders=[dict(active=0, x=.12, len=.88, y=-.1, yanchor="top", steps=steps,
+        sliders=[dict(active=0, x=.2, len=.8, y=-.19, yanchor="top", steps=steps, pad=dict(t=10, b=10),
                       currentvalue=dict(prefix="day ", font=dict(color=T.INK)),
                       font=dict(color=T.MUTED), bgcolor="#1b1c3d", bordercolor=T.AXIS, tickcolor=T.AXIS)],
-        margin=dict(b=110),
+        # Room under the axis title for the play buttons and the date slider:
+        # at the console's type size they were clipped by the chart card.
+        margin=dict(b=190),
     )
-    return _base(fig, 560, "Instability phase space — level against momentum, animated over the period")
+    return _base(fig, 700, "Instability phase space — level against momentum, animated over the period")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
