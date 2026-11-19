@@ -7,7 +7,9 @@ name: Python
 on:
   push:
     branches: [main]
-    paths-ignore: ['web/**', '.github/workflows/web.yml']
+    # outputs/live is rewritten every six hours by live-ingest.yml; data-only
+    # commits do not need the test suite.
+    paths-ignore: ['web/**', '.github/workflows/web.yml', 'outputs/live/**']
   pull_request:
     paths-ignore: ['web/**', '.github/workflows/web.yml']
   workflow_dispatch:

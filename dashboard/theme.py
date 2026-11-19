@@ -61,20 +61,21 @@ def rgba(hex_: str, a: float) -> str:
 
 
 pio.templates["apollo"] = go.layout.Template(layout=go.Layout(
-    font=dict(family=FONT, color=INK_2, size=13),
+    font=dict(family=FONT, color=INK_2, size=15),
     paper_bgcolor=SURFACE, plot_bgcolor=SURFACE,
     colorway=SERIES,
-    title=dict(font=dict(family=SERIF, color=INK, size=17), x=0.01, xanchor="left"),
-    xaxis=dict(gridcolor=GRID, linecolor=AXIS, zeroline=False, tickfont=dict(color=MUTED),
-               title=dict(font=dict(color=INK_2, size=12))),
-    yaxis=dict(gridcolor=GRID, linecolor=AXIS, zeroline=False, tickfont=dict(color=MUTED),
-               title=dict(font=dict(color=INK_2, size=12))),
+    title=dict(font=dict(family=SERIF, color=INK, size=23), x=0.01, xanchor="left"),
+    xaxis=dict(gridcolor=GRID, linecolor=AXIS, zeroline=False, tickfont=dict(color=MUTED, size=13),
+               title=dict(font=dict(color=INK_2, size=14))),
+    yaxis=dict(gridcolor=GRID, linecolor=AXIS, zeroline=False, tickfont=dict(color=MUTED, size=13),
+               title=dict(font=dict(color=INK_2, size=14))),
     # Title top-left, legend top-right: anchored to opposite corners so they
     # cannot overlap however long either one is.
-    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=INK_2, size=12), orientation="h",
+    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=INK_2, size=14), orientation="h",
                 yanchor="bottom", y=1.01, xanchor="right", x=1),
-    hoverlabel=dict(bgcolor="#251D40", bordercolor=AXIS, font=dict(color=INK, family=FONT)),
-    margin=dict(l=16, r=16, t=64, b=16),
+    hoverlabel=dict(bgcolor="#251D40", bordercolor=AXIS, font=dict(color=INK, family=FONT, size=14)),
+    margin=dict(l=20, r=20, t=78, b=20),
+    barcornerradius=5,
     transition=dict(duration=500, easing="cubic-in-out"),
 ))
 pio.templates.default = "apollo"
@@ -121,14 +122,23 @@ a {{ color: {LINK}; }}
         animation: rise .5s ease-out both; }}
 .kpi:nth-child(2) {{ animation-delay: .05s; }} .kpi:nth-child(3) {{ animation-delay: .1s; }}
 .kpi:nth-child(4) {{ animation-delay: .15s; }} .kpi:nth-child(5) {{ animation-delay: .2s; }}
-.kpi .v {{ font-size: 2rem; font-weight: 600; color: {INK}; line-height: 1.15; letter-spacing: -.01em; }}
+.kpi .v {{ font-size: 2.5rem; font-weight: 600; color: {INK}; line-height: 1.15; letter-spacing: -.01em; }}
 .kpi .v.count {{ animation: count 1.4s cubic-bezier(.2,.8,.2,1) both; counter-reset: num var(--num); }}
 .kpi .v.count::after {{ content: counter(num); }}
 .kpi .v.text {{ font-size: 1.15rem; line-height: 1.35; overflow-wrap: anywhere; padding: 6px 0 3px; }}
-.kpi .l {{ font-family: {MONO}; font-size: .68rem; color: {INK_2}; text-transform: uppercase;
+.kpi .l {{ font-family: {MONO}; font-size: .74rem; color: {INK_2}; text-transform: uppercase;
            letter-spacing: .08em; margin-top: 2px; }}
-.kpi .s {{ font-size: .8rem; color: {MUTED}; margin-top: 3px; }}
-.kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }}
+.kpi .s {{ font-size: .92rem; color: {MUTED}; margin-top: 3px; }}
+.kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }}
+/* Rows of 2-4 tiles divide the width evenly instead of leaving a ragged gap. */
+.kpi-row.even {{ grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }}
+/* Charts rise into place, one after another, instead of popping in. */
+[data-testid="stPlotlyChart"] {{ animation: rise .8s cubic-bezier(.2,.7,.2,1) both;
+  border: 1px solid {rgba(MIST, .10)}; border-radius: 16px; overflow: hidden;
+  background: {SURFACE}; margin-bottom: 18px; }}
+[data-testid="stPlotlyChart"]:nth-of-type(2) {{ animation-delay: .12s; }}
+[data-testid="stPlotlyChart"]:nth-of-type(3) {{ animation-delay: .24s; }}
+@media (prefers-reduced-motion: reduce) {{ [data-testid="stPlotlyChart"], .kpi {{ animation: none; }} }}
 
 .prov {{ border-radius: 14px; padding: 14px 18px; margin: 4px 0 16px; background: {SURFACE};
          border: 1px solid {rgba(MIST, .12)}; border-left: 3px solid {LINK}; animation: rise .45s ease-out both; }}
@@ -181,6 +191,10 @@ def kpi(label: str, value, sub: str = "", count: bool = False) -> str:
 
 
 def kpi_row(tiles: list[str]) -> str:
+    # Up to five tiles share the row evenly, so three tiles are three equal
+    # thirds, not three tiles and a gap. More than five wrap.
+    if 1 < len(tiles) <= 5:
+        return f'<div class="kpi-row even" style="--n:{len(tiles)}">{"".join(tiles)}</div>'
     return f'<div class="kpi-row">{"".join(tiles)}</div>'
 
 

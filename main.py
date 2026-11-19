@@ -513,8 +513,8 @@ class MesoLayer:
         # `100 - penalty*100` was always negative -> clamped to 0 for every
         # community (the '*100 overflow' bug). CHI = 100 - penalty is correct:
         # higher CHI = healthier.
-        penalty = toxicity_rate * 35 + polarization * 30 + churn_rate * 20 + echo_chamber * 15
-        return round(max(0.0, min(100.0, 100 - penalty)), 2)
+        from apollo_chi import community_health_index
+        return community_health_index(toxicity_rate, polarization, churn_rate, echo_chamber)
 
     def analyze_all_communities(self, comments_df: pd.DataFrame, graph: nx.DiGraph) -> list:
         log.info("Running meso analysis...")

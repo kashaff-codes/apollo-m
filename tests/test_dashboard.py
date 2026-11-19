@@ -138,7 +138,7 @@ def test_third_party_text_is_inert():
 # ── the app itself, headless ────────────────────────────────────────────────
 
 PAGES = ["Overview", "Dynamics", "Communities", "Forecast", "🎯 Actions", "Clusters",
-         "Across corpora", "Evidence", "🔴 Live", "🌐 Real Reddit", "Monitoring"]
+         "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring"]
 
 
 @pytest.fixture(scope="module")

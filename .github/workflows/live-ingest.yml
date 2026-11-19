@@ -1,0 +1,70 @@
+name: Live ingest
+
+# Keeps APOLLO-M current without anyone running a script. Every six hours
+# (and whenever "Run workflow" is pressed) this job fetches the newest comments
+# for every community in live/communities.txt from Arctic Shift, scores them
+# with toxic-bert, recomputes the Community Health Index and the next-day
+# forecast, and commits the aggregates to outputs/live/. The console, the web
+# view and the API read those files, so they update on the next deploy.
+#
+# What is committed: per-run aggregates per community (counts, toxicity
+# statistics, health, forecast) and a status file. What is not: comment text
+# and usernames. Author identities exist only as salted hashes in the Actions
+# cache, for the churn measure, and expire after two weeks.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: Window to fetch, in hours
+        required: false
+        default: '6'
+
+concurrency:
+  group: live-ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install "transformers>=4.40" pandas numpy requests networkx scikit-learn
+
+      - name: Restore the run cache (toxic-bert, salted author hashes)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            data/live
+          key: live-${{ github.run_id }}
+          restore-keys: live-
+
+      - name: Ingest
+        run: python scripts/live_ingest.py --hours "${{ github.event.inputs.hours || '6' }}" --budget 45
+
+      - name: Publish
+        run: |
+          git config user.name  "apollo-live-ingest"
+          git config user.email "apollo-live-ingest@users.noreply.github.com"
+          git add outputs/live
+          if git diff --cached --quiet; then
+            echo "Nothing new to publish."
+          else
+            git commit -m "live: $(python -c "import json;s=json.load(open('outputs/live/status.json'));print(f\"{s['comments_this_run']} comments, {s['communities_with_data']} communities, {s['run_at']}\")")"
+            git pull --rebase --autostash
+            git push
+          fi

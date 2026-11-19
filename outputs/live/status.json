@@ -1,0 +1,23 @@
+{
+  "run_at": "2026-11-19T00:06:50+00:00",
+  "window_hours": 6.0,
+  "communities_tracked": 53,
+  "communities_with_data": 52,
+  "comments_this_run": 7247,
+  "comments_total": 7247,
+  "runs_total": 1,
+  "first_run": "2026-11-19T00:06:50+00:00",
+  "newest_comment_utc": 1795046791,
+  "newest_comment_age_min": 0.3,
+  "slices_failed": 1,
+  "failures": [
+    {
+      "subreddit": "wallstreetbets",
+      "after": 1795025210,
+      "error": "http 422"
+    }
+  ],
+  "scorer": "unitary/toxic-bert",
+  "chi_window_days": 7,
+  "forecast_method": "recent_mean_7d (beat the TFT in every real-corpus backtest)"
+}

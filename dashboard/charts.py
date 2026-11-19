@@ -52,7 +52,7 @@ def _band_zones(fig: go.Figure, y0: float, y1: float, row=None, col=None) -> Non
 # Overview
 # ═════════════════════════════════════════════════════════════════════════════
 
-def landscape(meso: pd.DataFrame, label_worst: int = 3) -> go.Figure:
+def landscape(meso: pd.DataFrame, label_worst: int = 6, label_best: int = 2) -> go.Figure:
     """
     Every community at once: toxicity across, health up, size = comments
     analysed. The faint bands are the alert thresholds, so a point's band can
@@ -61,7 +61,7 @@ def landscape(meso: pd.DataFrame, label_worst: int = 3) -> go.Figure:
     fig = go.Figure()
     vol = meso["volume"] if "volume" in meso else meso["total_comments"]
     size = np.sqrt(vol.clip(lower=1))
-    size = 9 + 17 * (size - size.min()) / max(size.max() - size.min(), 1e-9)
+    size = 12 + 26 * (size - size.min()) / max(size.max() - size.min(), 1e-9)
     for band in ORDER:
         m = meso["band"] == band
         if not m.any():
@@ -83,13 +83,18 @@ def landscape(meso: pd.DataFrame, label_worst: int = 3) -> go.Figure:
     y0 = max(0, meso["community_health_index"].min() - 4)
     y1 = min(100, meso["community_health_index"].max() + 4)
     _band_zones(fig, y0, y1)
-    for _, r in meso.nsmallest(label_worst, "community_health_index").iterrows():
+    # Name the communities a moderator would ask about first (the least healthy)
+    # and the healthiest for contrast; every point names itself on hover.
+    picks = pd.concat([meso.nsmallest(label_worst, "community_health_index"),
+                       meso.nlargest(label_best, "community_health_index")]).drop_duplicates("subreddit")
+    for i, (_, r) in enumerate(picks.iterrows()):
         fig.add_annotation(x=r["toxicity_rate"], y=r["community_health_index"], text=r["subreddit"],
-                           showarrow=True, arrowhead=0, arrowcolor=T.MUTED, ax=28, ay=-22,
-                           font=dict(size=11, color=T.INK))
+                           showarrow=True, arrowhead=0, arrowcolor=T.MUTED,
+                           ax=(34 if i % 2 == 0 else -34), ay=(-26 if i % 3 else 26),
+                           font=dict(size=13, color=T.INK), bgcolor=T.rgba(T.SURFACE, .75))
     fig.update_xaxes(title="mean toxicity (toxic-bert)")
     fig.update_yaxes(title="Community Health Index", range=[y0, y1])
-    return _base(fig, 470, "Health landscape — every community, sized by its comment volume")
+    return _base(fig, 640, "Health landscape — every community, sized by its comment volume")
 
 
 def band_strip(meso: pd.DataFrame) -> go.Figure:
@@ -107,14 +112,14 @@ def band_strip(meso: pd.DataFrame) -> go.Figure:
             marker=dict(color=COLOR[band], line=dict(width=2, color=T.SURFACE)),
             text=[f"{ICON[band]} {band} {n}" if share >= .12 else (str(n) if share >= .04 else "")],
             textposition="inside", insidetextanchor="middle",
-            textfont=dict(color="#0b0b0b" if band == "MEDIUM" else "#ffffff", size=12),
+            textfont=dict(color="#0b0b0b" if band == "MEDIUM" else "#ffffff", size=15),
             hovertemplate=f"{band}: %{{x}} of {total} ({share:.0%})<extra></extra>",
         ))
     fig.update_layout(barmode="stack", showlegend=True, bargap=0)
     fig.update_xaxes(visible=False, range=[0, total])
     fig.update_yaxes(visible=False)
     fig.update_layout(margin=dict(t=70, b=8))
-    return _base(fig, 170, f"Alert bands — {total} communities")
+    return _base(fig, 210, f"Alert bands — {total} communities")
 
 
 def heatmap(daily: pd.DataFrame, order: list[str]) -> go.Figure:
@@ -129,8 +134,8 @@ def heatmap(daily: pd.DataFrame, order: list[str]) -> go.Figure:
                       tickfont=dict(color=T.MUTED)),
         hovertemplate="<b>%{y}</b> · %{x|%b %d}<br>mean toxicity %{z:.3f}<br>%{customdata:,} comments<extra></extra>",
     ))
-    fig.update_yaxes(autorange="reversed", tickfont=dict(size=10))
-    return _base(fig, max(360, 16 * len(p) + 90),
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=13))
+    return _base(fig, max(460, 24 * len(p) + 110),
                  "Daily toxicity — rows ordered worst CHI first; blank = no data that day")
 
 
@@ -414,12 +419,12 @@ def corpora_dots(table: pd.DataFrame, order: list[str], labels: dict[str, str]) 
         if g.empty:
             continue
         fig.add_trace(go.Scatter(x=g["toxicity"], y=g["subreddit"], mode="markers", name=labels[key],
-                                 marker=dict(size=11, color=T.SERIES[i], symbol=["circle", "square", "diamond"][i % 3],
+                                 marker=dict(size=15, color=T.SERIES[i], symbol=["circle", "square", "diamond"][i % 3],
                                              line=dict(width=2, color=T.SURFACE)),
                                  hovertemplate="%{y}: %{x:.3f}<extra>" + labels[key] + "</extra>"))
-    fig.update_yaxes(categoryorder="array", categoryarray=rank, tickfont=dict(size=10))
+    fig.update_yaxes(categoryorder="array", categoryarray=rank, tickfont=dict(size=13))
     fig.update_xaxes(title="mean toxicity in that corpus")
-    return _base(fig, max(380, 20 * len(rank) + 120), "The same communities, measured three times")
+    return _base(fig, max(480, 28 * len(rank) + 140), "The same communities, measured three times")
 
 
 def live_line(x: list, y: list) -> go.Figure:

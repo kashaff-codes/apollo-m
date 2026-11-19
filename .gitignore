@@ -68,3 +68,5 @@ docs/paper/bootstrap_draws.npz
 
 # Forward test: raw comments with usernames; only aggregates go to outputs/forward_test/
 data/forward_test/
+# Live-ingest run cache (salted author hashes); persisted by the Actions cache, never committed.
+data/live/

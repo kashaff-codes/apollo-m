@@ -235,7 +235,7 @@ with st.sidebar:
                        help="Four corpora, one pipeline. The benchmark is a declared simulation with "
                             "recorded ground truth; the other three are real Reddit comments.")
     page = st.radio("Navigate", ["Overview", "Dynamics", "Communities", "Forecast", "🎯 Actions", "Clusters",
-                                 "Across corpora", "Evidence", "🔴 Live", "🌐 Real Reddit", "Monitoring"])
+                                 "Across corpora", "Evidence", "🔴 Live", "📡 Topic watch", "Monitoring"])
     provider = st.radio("LLM provider", ["claude", "ollama"], horizontal=True,
                         help="Claude = cloud API. Ollama = local and free, needs `ollama serve`.")
     st.divider()
@@ -276,10 +276,12 @@ def provenance():
         unsafe_allow_html=True)
 
 
-def header(title: str, sub: str = ""):
-    """Page title in Fraunces, under Occuris's mono status strip for the selected corpus."""
+def header(title: str, sub: str = "", strip: bool = True):
+    """Page title in Fraunces, under the mono status strip for the selected corpus.
+    Pages that are not about the selected corpus (Live, Topic watch) pass strip=False,
+    so a live page never shows the August corpus's numbers above it."""
     import time as _t
-    if not meso.empty:
+    if strip and not meso.empty:
         f = load("facts", key)
         attention = int(meso["band"].isin(["CRITICAL", "HIGH"]).sum())
         st.markdown(T.status_strip([
@@ -490,7 +492,9 @@ elif page == "Across corpora":
     for a, b in pairs:
         rho, n = D.rank_agreement(t, a, b)
         if n >= 3:
-            tiles.append(T.kpi(f"ρ over {n} shared", f"{rho:.3f}",
+            # ρ goes in the value: labels are upper-cased, and an upper-case ρ
+            # renders as "P".
+            tiles.append(T.kpi(f"rank agreement · {n} shared", f"ρ {rho:.3f}",
                                f"{LABELS[a].split('·')[-1].strip()} vs {LABELS[b].split('·')[-1].strip()}"))
     st.markdown(T.kpi_row(tiles), unsafe_allow_html=True)
     finding("<b>Spearman rank correlation of community toxicity between corpora.</b> Three collections — an "
@@ -668,48 +672,97 @@ def _live_note() -> str:
 LIVE_NOTE = _live_note()
 
 if page == "🔴 Live":
-    header("Live", "Real comments, scored as they arrive.")
-    st.toggle("Show text of comments flagged toxic", key="live_reveal",
-              help="Off by default: real comments include slurs. Scores are always shown.")
-    live_panel()
-
-elif page == "🌐 Real Reddit":
-    header("Real Reddit", "One live request to Arctic Shift, made when you press the button.")
-    fc = st.columns([2, 1, 1])
-    sub_live = fc[0].text_input("Subreddit", value="politics", label_visibility="collapsed",
-                                placeholder="subreddit, e.g. politics")
-    n_live = fc[1].selectbox("How many", [10, 25, 50], index=0, label_visibility="collapsed")
-    if fc[2].button("⚡ Fetch now", use_container_width=True, type="primary"):
+    header("Live", "Measured every six hours by a scheduled job — no one runs a script.", strip=False)
+    LIVE = OUTPUTS / "live"
+    status = json.loads((LIVE / "status.json").read_text()) if (LIVE / "status.json").exists() else None
+    if not status:
+        st.info("The scheduled live ingest has not published yet (outputs/live/status.json).")
+    else:
         import datetime as _dt
-        import requests as _rq
-        with st.spinner(f"calling Arctic Shift for r/{sub_live}…"):
-            try:
-                now = int(_dt.datetime.now(_dt.timezone.utc).timestamp())
-                r = _rq.get("https://arctic-shift.photon-reddit.com/api/comments/search",
-                            params={"subreddit": sub_live.strip().removeprefix("r/"), "before": now,
-                                    "limit": int(n_live)}, timeout=25)
-                if r.status_code != 200:
-                    st.error(f"Arctic Shift returned HTTP {r.status_code}")
-                else:
-                    rows = [c for c in (r.json().get("data") or [])
-                            if (c.get("body") or "").strip() not in ("", "[deleted]", "[removed]")]
-                    if not rows:
-                        st.warning("No comments returned for that subreddit/window.")
-                    else:
-                        age = (now - max(c["created_utc"] for c in rows)) / 60
-                        st.success(f"Fetched {len(rows)} comments from r/{sub_live} — newest posted "
-                                   f"{age:.0f} minutes ago.")
-                        for c in rows[:12]:
-                            ts = _dt.datetime.fromtimestamp(c["created_utc"], _dt.timezone.utc).strftime("%H:%M UTC")
-                            st.markdown(f"<span style='color:{T.LINK}'>●</span> "
-                                        f"<b>r/{safe(c.get('subreddit', sub_live))}</b> "
-                                        f"<span style='color:#898781'>u/{safe(c.get('author', '?'))} · {ts}</span> — "
-                                        f"{safe(str(c.get('body', ''))[:170])}", unsafe_allow_html=True)
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Live fetch failed: {exc}")
-    st.caption("No credentials needed, which is why Arctic Shift was chosen over Reddit's own API. Scoring "
-               "runs in the pipeline, which loads the transformer locally. The four corpora in the sidebar are "
-               "what that pipeline produced.")
+        ran = _dt.datetime.fromisoformat(status["run_at"])
+        age_min = (_dt.datetime.now(_dt.timezone.utc) - ran).total_seconds() / 60
+        ago = f"{age_min:.0f} min" if age_min < 90 else f"{age_min / 60:.1f} h"
+        st.markdown(T.kpi_row([
+            T.kpi("Last measured", f"{ago} ago", ran.strftime("%d %b %H:%M UTC")),
+            T.kpi("Communities", status["communities_with_data"], f"of {status['communities_tracked']} tracked"),
+            T.kpi("Comments this run", f"{int(status['comments_this_run']):,}",
+                  f"last {status['window_hours']:g} h, scored by toxic-bert"),
+            T.kpi("Comments to date", f"{int(status['comments_total']):,}",
+                  f"{status['runs_total']} run(s) since {str(status['first_run'])[:10]}"),
+            T.kpi("Freshness", f"{status['newest_comment_age_min']:.0f} min"
+                  if status.get("newest_comment_age_min") is not None else "—",
+                  "newest comment vs the run"),
+        ]), unsafe_allow_html=True)
+        st.write("")
+        lm = pd.read_csv(LIVE / "meso_report.csv") if (LIVE / "meso_report.csv").exists() else pd.DataFrame()
+        if not lm.empty:
+            lm = lm.rename(columns={"alert": "band"})
+            show(C.band_strip(lm), key="live_strip")
+            show(C.landscape(lm.assign(volume=lm["total_comments"])),
+                 lm[["subreddit", "community_health_index", "band", "toxicity_rate", "churn_rate",
+                     "total_comments", "last_seen"]], key="live_land")
+            finding(f"<b>Rolling {status['chi_window_days']}-day health, recomputed every run</b> with the "
+                    "pipeline's own formula (apollo_chi): toxicity and author churn from the live comments, "
+                    "polarisation and echo from each community's place in the SNAP hyperlink graph. "
+                    f"Forecast: {safe(status['forecast_method'])}.")
+        if status.get("slices_failed"):
+            st.caption(f"{status['slices_failed']} fetch slices failed on the last run (Arctic Shift "
+                       "throttling); those communities keep their previous values until the next run.")
+    st.caption("Adding a community: one line in live/communities.txt. Schedule: "
+               ".github/workflows/live-ingest.yml (every 6 hours, and on demand).")
+    with st.expander("Replay demo — real scored comments, simulated arrival timing"):
+        st.toggle("Show text of comments flagged toxic", key="live_reveal",
+                  help="Off by default: real comments include slurs. Scores are always shown.")
+        live_panel()
+
+elif page == "📡 Topic watch":
+    import apollo_live as AL
+    import charts_live as CL
+    header("Topic watch", "Ask Reddit a question now. Each search goes straight to Arctic Shift, "
+                          "which mirrors Reddit within minutes.", strip=False)
+    c1, c2, c3, c4 = st.columns([2.2, 1.6, 1, 1])
+    q = c1.text_input("Keyword or phrase", value="remote", placeholder="e.g. remote hiring, layoffs, nvidia")
+    preset = c2.selectbox("Where to look", list(AL.TOPICS), index=0)
+    hours = c3.selectbox("In the last", [1, 6, 24, 72, 168], index=2,
+                         format_func=lambda h: f"{h} h" if h < 48 else f"{h // 24} days")
+    kind = c4.selectbox("Search", ["posts", "comments"], index=0)
+    subs = st.multiselect("Communities searched (edit freely)", AL.TOPICS[preset] + ["AskReddit", "news"],
+                          default=AL.TOPICS[preset])
+    if st.button("📡 Search now", type="primary", use_container_width=True) and q.strip() and subs:
+        with st.spinner(f"asking Arctic Shift about “{q}” in {len(subs)} communities…"):
+            res = AL.topic_watch(q.strip(), subs, hours=hours, kind=kind)
+        st.session_state["topic_res"] = res
+    res = st.session_state.get("topic_res")
+    if res:
+        rows = pd.DataFrame(res["rows"])
+        n = len(rows)
+        st.markdown(T.kpi_row([
+            T.kpi("Matches", f"{n:,}", f"{res['kind']} mentioning “{safe(res['query'])}”"),
+            T.kpi("Communities", int(rows["subreddit"].nunique()) if n else 0,
+                  f"of {len(res['searched'])} searched"),
+            T.kpi("Newest", f"{res['newest_age_min']:.0f} min ago" if res["newest_age_min"] is not None else "—",
+                  "Arctic Shift lag included"),
+            T.kpi("Window", f"{res['hours']} h", "asked just now"),
+        ]), unsafe_allow_html=True)
+        if res["failed"]:
+            st.caption("Not answered this time (throttled — try again in a minute): "
+                       + ", ".join(f"{k} ({v})" for k, v in res["failed"].items()))
+        if n:
+            show(CL.where(rows), rows.groupby("subreddit").size().rename("matches").reset_index(), key="tw_where")
+            show(CL.when(rows, res["hours"]), None, key="tw_when")
+            st.markdown("#### The matches, newest first")
+            for _, r in rows.head(40).iterrows():
+                extra = (f" · {int(r['comments'])} replies" if pd.notna(r.get("comments")) else "")
+                st.markdown(
+                    f"<div class='feed'><span class='chip'>{r['time']:%d %b %H:%M} UTC</span> "
+                    f"<b>{safe(r['subreddit'])}</b>{extra} — "
+                    f"<a href='{safe(r['link'] or '#')}' target='_blank'>{safe(str(r['text'])[:180])}</a></div>",
+                    unsafe_allow_html=True)
+        else:
+            st.info("Nothing matched in that window. Widen the window or add communities.")
+    st.caption("Why a list of communities: Arctic Shift's keyword search must name the subreddits to search. "
+               "Searching all of Reddit at once needs Reddit's own API (a registered app: "
+               "REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET). Nothing here is stored.")
 
 elif page == "Monitoring":
     header("Monitoring", "Both APIs, scraped every thirty seconds. Public, read-only.")
