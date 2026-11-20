@@ -1,23 +1,17 @@
 {
-  "run_at": "2026-11-19T00:29:12+00:00",
-  "run_at_ms": 1795048152000,
+  "run_at": "2026-11-20T00:35:57+00:00",
+  "run_at_ms": 1795134957000,
   "window_hours": 6.0,
   "communities_tracked": 53,
   "communities_with_data": 52,
-  "comments_this_run": 7186,
-  "comments_total": 14433,
-  "runs_total": 2,
+  "comments_this_run": 6919,
+  "comments_total": 21352,
+  "runs_total": 3,
   "first_run": "2026-11-19T00:06:50+00:00",
-  "newest_comment_utc": 1795048122,
-  "newest_comment_age_min": 0.5,
-  "slices_failed": 1,
-  "failures": [
-    {
-      "subreddit": "unpopularopinion",
-      "after": 1795037352,
-      "error": "http 422"
-    }
-  ],
+  "newest_comment_utc": 1795134598,
+  "newest_comment_age_min": 6.0,
+  "slices_failed": 0,
+  "failures": [],
   "scorer": "unitary/toxic-bert",
   "chi_window_days": 7,
   "forecast_method": "recent_mean_7d (beat the TFT in every real-corpus backtest)"
